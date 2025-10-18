@@ -1,0 +1,65 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv
+
+# Database (จะสร้างใหม่ใน container)
+*.db
+*.sqlite
+*.sqlite3
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.cursor/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Git
+.git/
+.gitignore
+
+# Documentation (optional - ถ้าต้องการเก็บไว้ให้ลบบรรทัดนี้)
+*.md
+!README.md
+
+# Test files
+test_*.py
+debug_*.py
+*_test.py
+
+# Backup files
+*.backup
+*.bak
+*_backup.*
+*_old.*
+
+# Build
+build/
+dist/
+*.egg-info/
+
+# Logs
+*.log
+
+# Batch files (Windows specific)
+*.bat
+
+# Environment files
+.env
+.env.local
+

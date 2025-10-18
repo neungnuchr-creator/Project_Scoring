@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  project-scoring:
+    build: .
+    container_name: project-scoring-system
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=production
+      - PORT=5000
+    volumes:
+      # เก็บ database ไว้ใน volume เพื่อไม่ให้หายเมื่อ restart
+      - project-data:/app
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/login"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  project-data:
+    driver: local
+

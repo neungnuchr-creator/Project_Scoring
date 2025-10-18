@@ -4,6 +4,10 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Optional
 import os
 from werkzeug.security import generate_password_hash, check_password_hash
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 from functools import wraps
 from io import BytesIO
 from reportlab.lib import colors
@@ -16,11 +20,11 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'your-secret-key-change-in-production-12345'
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-change-in-production-12345')
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=1)  # Session timeout 1 ชั่วโมง
 
 # Database configuration
-DATABASE = 'project_scoring.db'
+DATABASE = os.environ.get('DATABASE_PATH', 'project_scoring.db')
 
 # Login required decorator
 def login_required(f):
