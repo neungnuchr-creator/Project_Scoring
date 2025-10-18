@@ -420,15 +420,7 @@
                         <input type="email" id="email" required placeholder="yourname@g-able.com">
                     </div>
                     <div class="info-text" style="margin-top: 8px; font-size: 12px; color: #64748b;">
-                        <i class="fas fa-info-circle"></i> ต้องเป็นอีเมล @g-able.com เท่านั้น
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label>ชื่อผู้ใช้ <span class="required">*</span></label>
-                    <div class="input-wrapper">
-                        <i class="fas fa-at input-icon"></i>
-                        <input type="text" id="username" required placeholder="ชื่อผู้ใช้สำหรับเข้าสู่ระบบ">
+                        <i class="fas fa-info-circle"></i> ต้องเป็นอีเมล @g-able.com เท่านั้น (ใช้เป็น username สำหรับเข้าสู่ระบบ)
                     </div>
                 </div>
 
@@ -512,9 +504,11 @@
             const lastName = document.getElementById('lastName').value.trim();
             const employeeId = document.getElementById('employeeId').value.trim();
             const email = document.getElementById('email').value.trim();
-            const username = document.getElementById('username').value.trim();
             const password = document.getElementById('password').value;
             const confirmPassword = document.getElementById('confirmPassword').value;
+            
+            // ใช้ email เป็น username
+            const username = email;
 
             console.log('📝 Form data:', { firstName, lastName, employeeId, email, username });
 

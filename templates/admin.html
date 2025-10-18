@@ -554,6 +554,133 @@
             }
         }
 
+        /* User Management Styles */
+        .user-tabs {
+            display: flex;
+            gap: 10px;
+        }
+
+        .user-tab {
+            padding: 12px 24px;
+            background: transparent;
+            border: none;
+            border-bottom: 3px solid transparent;
+            color: #64748b;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 14px;
+        }
+
+        .user-tab:hover {
+            color: var(--admin-primary);
+            background: rgba(124, 58, 237, 0.05);
+            border-radius: 8px 8px 0 0;
+        }
+
+        .user-tab.active {
+            color: var(--admin-primary);
+            border-bottom-color: var(--admin-primary);
+            background: rgba(124, 58, 237, 0.05);
+        }
+
+        .status-badge {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .status-pending {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            color: #92400e;
+            border: 1px solid #fbbf24;
+        }
+
+        .status-approved {
+            background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+            color: #065f46;
+            border: 1px solid #10b981;
+        }
+
+        .user-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .btn-approve, .btn-reject {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-approve {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-approve:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.5);
+        }
+
+        .btn-reject {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+            box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-reject:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.5);
+        }
+
+        .btn-approve:disabled, .btn-reject:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(100px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes slideOutRight {
+            from {
+                opacity: 1;
+                transform: translateX(0);
+            }
+            to {
+                opacity: 0;
+                transform: translateX(100px);
+            }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
         /* Responsive */
         @media (max-width: 1200px) {
             .stats-grid {
@@ -661,6 +788,66 @@
             </div>
         </div>
 
+        <!-- User Management Section -->
+        <div class="content-card" style="margin-bottom: 30px;">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <i class="fas fa-users-cog"></i>
+                    จัดการผู้ใช้งาน
+                </h2>
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <span id="pendingUsersCount" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: 600; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);">
+                        <i class="fas fa-clock"></i> รออนุมัติ: <span id="pendingCount">0</span>
+                    </span>
+                    <button class="btn-refresh" onclick="loadUsers()">
+                        <i class="fas fa-sync-alt"></i>
+                        รีเฟรช Users
+                    </button>
+                </div>
+            </div>
+
+            <!-- User Tabs -->
+            <div style="padding: 20px 30px; border-bottom: 2px solid #f3e8ff;">
+                <div class="user-tabs">
+                    <button class="user-tab active" data-tab="pending" onclick="switchUserTab('pending')">
+                        <i class="fas fa-clock"></i> รออนุมัติ (<span id="pendingTabCount">0</span>)
+                    </button>
+                    <button class="user-tab" data-tab="approved" onclick="switchUserTab('approved')">
+                        <i class="fas fa-check-circle"></i> อนุมัติแล้ว (<span id="approvedTabCount">0</span>)
+                    </button>
+                    <button class="user-tab" data-tab="all" onclick="switchUserTab('all')">
+                        <i class="fas fa-users"></i> ทั้งหมด (<span id="allTabCount">0</span>)
+                    </button>
+                </div>
+            </div>
+
+            <!-- Users Table -->
+            <div class="table-wrapper" style="max-height: 450px; overflow-y: auto;">
+                <table class="projects-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 60px;">ID</th>
+                            <th style="width: 200px;">ชื่อ-นามสกุล</th>
+                            <th>Email</th>
+                            <th style="width: 120px;">รหัสพนักงาน</th>
+                            <th style="width: 120px;">Username</th>
+                            <th style="width: 120px;">สถานะ</th>
+                            <th style="width: 150px;">สมัครเมื่อ</th>
+                            <th style="width: 200px; text-align: center;">การจัดการ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTableBody">
+                        <tr>
+                            <td colspan="8" style="text-align: center; padding: 40px;">
+                                <div style="display: inline-block; width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid var(--admin-primary); border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                                <p style="margin-top: 15px; color: #64748b; font-size: 14px;">กำลังโหลดข้อมูล...</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
         <!-- Projects Table -->
         <div class="content-card">
             <div class="card-header">
@@ -725,6 +912,8 @@
 
     <script>
         let allProjects = [];
+        let allUsersData = [];
+        let currentUserTab = 'pending';
 
         // Show/Hide loading overlay
         function setLoading(show) {
@@ -735,6 +924,247 @@
                 overlay.classList.remove('active');
             }
         }
+
+        // ==================== User Management Functions ====================
+
+        // Load users
+        async function loadUsers() {
+            try {
+                const response = await fetch('/api/admin/users');
+                
+                if (!response.ok) {
+                    throw new Error('Failed to load users');
+                }
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    allUsersData = result.users;
+                    updateUserCounts();
+                    displayUsers();
+                }
+            } catch (error) {
+                console.error('Error loading users:', error);
+                document.getElementById('usersTableBody').innerHTML = `
+                    <tr>
+                        <td colspan="8" style="text-align: center; padding: 40px; color: #ef4444;">
+                            <i class="fas fa-exclamation-circle" style="font-size: 32px; margin-bottom: 10px;"></i>
+                            <p>เกิดข้อผิดพลาดในการโหลดข้อมูล</p>
+                            <button onclick="loadUsers()" style="margin-top: 10px; padding: 8px 16px; background: var(--admin-primary); color: white; border: none; border-radius: 8px; cursor: pointer;">
+                                <i class="fas fa-redo"></i> ลองใหม่
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        // Update user counts
+        function updateUserCounts() {
+            const pendingCount = allUsersData.filter(u => u.approved === 0 && u.role !== 'admin').length;
+            const approvedCount = allUsersData.filter(u => u.approved === 1 && u.role !== 'admin').length;
+            const allCount = allUsersData.filter(u => u.role !== 'admin').length;
+            
+            document.getElementById('pendingCount').textContent = pendingCount;
+            document.getElementById('pendingTabCount').textContent = pendingCount;
+            document.getElementById('approvedTabCount').textContent = approvedCount;
+            document.getElementById('allTabCount').textContent = allCount;
+        }
+
+        // Switch user tab
+        function switchUserTab(tab) {
+            currentUserTab = tab;
+            
+            // Update tab active state
+            document.querySelectorAll('.user-tab').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+            
+            // Display filtered users
+            displayUsers();
+        }
+
+        // Display users based on current tab
+        function displayUsers() {
+            const tbody = document.getElementById('usersTableBody');
+            
+            // Filter users (exclude admin)
+            let filteredUsers = allUsersData.filter(u => u.role !== 'admin');
+            
+            if (currentUserTab === 'pending') {
+                filteredUsers = filteredUsers.filter(u => u.approved === 0);
+            } else if (currentUserTab === 'approved') {
+                filteredUsers = filteredUsers.filter(u => u.approved === 1);
+            }
+            
+            if (filteredUsers.length === 0) {
+                const emptyMessage = currentUserTab === 'pending' 
+                    ? '<p>ไม่มี users ที่รออนุมัติ 🎉</p>'
+                    : currentUserTab === 'approved'
+                    ? '<p>ยังไม่มี users ที่อนุมัติแล้ว</p>'
+                    : '<p>ยังไม่มี users ในระบบ</p>';
+                
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" style="text-align: center; padding: 40px; color: #64748b;">
+                            <i class="fas fa-inbox" style="font-size: 48px; margin-bottom: 10px; opacity: 0.3;"></i>
+                            ${emptyMessage}
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            tbody.innerHTML = filteredUsers.map(user => `
+                <tr style="animation: fadeIn 0.3s;">
+                    <td><strong>${user.id}</strong></td>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <div style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, var(--admin-primary), var(--admin-secondary)); display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 14px; box-shadow: 0 4px 8px rgba(124, 58, 237, 0.3);">
+                                ${user.first_name.charAt(0)}${user.last_name.charAt(0)}
+                            </div>
+                            <div>
+                                <strong style="color: var(--dark); font-size: 14px;">${user.first_name} ${user.last_name}</strong>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <i class="fas fa-envelope" style="color: var(--admin-primary); margin-right: 5px;"></i>
+                        ${user.email}
+                    </td>
+                    <td><span class="employee-badge">${user.employee_id}</span></td>
+                    <td style="color: #64748b; font-family: monospace;">${user.username}</td>
+                    <td>
+                        ${user.approved === 1 ? 
+                            '<span class="status-badge status-approved"><i class="fas fa-check-circle"></i> อนุมัติแล้ว</span>' :
+                            '<span class="status-badge status-pending"><i class="fas fa-clock"></i> รออนุมัติ</span>'
+                        }
+                    </td>
+                    <td style="font-size: 13px; color: #64748b;">${formatDateTime(user.created_date)}</td>
+                    <td>
+                        <div class="user-actions">
+                            ${user.approved === 0 ? `
+                                <button class="btn-approve" onclick="approveUser(${user.id}, '${user.first_name} ${user.last_name}')" title="อนุมัติ">
+                                    <i class="fas fa-check"></i> อนุมัติ
+                                </button>
+                                <button class="btn-reject" onclick="rejectUser(${user.id}, '${user.first_name} ${user.last_name}')" title="ปฏิเสธ">
+                                    <i class="fas fa-times"></i> ปฏิเสธ
+                                </button>
+                            ` : `
+                                <span style="color: #10b981; font-size: 13px; font-weight: 600;">
+                                    <i class="fas fa-check-circle"></i> ใช้งานได้แล้ว
+                                </span>
+                            `}
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // Approve user
+        async function approveUser(userId, userName) {
+            if (!confirm(`✅ ยืนยันการอนุมัติ "${userName}"?\n\nหลังจากอนุมัติแล้ว user จะสามารถ login เข้าระบบได้ทันที`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/admin/users/${userId}/approve`, {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showNotification(result.message, 'success');
+                    loadUsers(); // Reload users
+                    loadStatistics(); // Update statistics
+                } else {
+                    showNotification(result.error || 'เกิดข้อผิดพลาด', 'error');
+                }
+            } catch (error) {
+                console.error('Error approving user:', error);
+                showNotification('เกิดข้อผิดพลาดในการอนุมัติ', 'error');
+            }
+        }
+
+        // Reject user
+        async function rejectUser(userId, userName) {
+            if (!confirm(`⚠️ ยืนยันการปฏิเสธและลบ "${userName}" ออกจากระบบ?\n\n⚠️ คำเตือน:\n- User จะถูกลบออกจากระบบถาวร\n- โครงการทั้งหมดของ user นี้จะถูกลบด้วย\n- ไม่สามารถกู้คืนได้!\n\nต้องการดำเนินการต่อหรือไม่?`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/admin/users/${userId}/reject`, {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showNotification(result.message, 'success');
+                    loadUsers(); // Reload users
+                    loadProjects(); // Reload projects (เพราะอาจมีโครงการถูกลบ)
+                    loadStatistics(); // Update statistics
+                } else {
+                    showNotification(result.error || 'เกิดข้อผิดพลาด', 'error');
+                }
+            } catch (error) {
+                console.error('Error rejecting user:', error);
+                showNotification('เกิดข้อผิดพลาดในการปฏิเสธ', 'error');
+            }
+        }
+
+        // Format date time
+        function formatDateTime(dateStr) {
+            if (!dateStr) return '-';
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('th-TH', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        // Show notification
+        function showNotification(message, type = 'info') {
+            // สร้าง notification element
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 80px;
+                right: 20px;
+                padding: 16px 24px;
+                background: ${type === 'success' ? 'linear-gradient(135deg, #10b981, #059669)' : 'linear-gradient(135deg, #ef4444, #dc2626)'};
+                color: white;
+                border-radius: 12px;
+                box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+                z-index: 1000;
+                font-weight: 600;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                animation: slideInRight 0.3s ease;
+                max-width: 400px;
+            `;
+            
+            notification.innerHTML = `
+                <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}" style="font-size: 20px;"></i>
+                <span>${message}</span>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Auto remove after 3 seconds
+            setTimeout(() => {
+                notification.style.animation = 'slideOutRight 0.3s ease';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+
+        // ==================== End User Management Functions ====================
 
         // Load all projects
         async function loadProjects() {
@@ -940,7 +1370,8 @@
             await Promise.all([
                 loadProjects(),
                 loadStatistics(),
-                loadEmployees()
+                loadEmployees(),
+                loadUsers()
             ]);
         })();
 
@@ -948,6 +1379,7 @@
         setInterval(() => {
             loadProjects();
             loadStatistics();
+            loadUsers();
         }, 30000);
 
         // Keyboard shortcut: Ctrl+R to refresh

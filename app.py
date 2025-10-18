@@ -233,12 +233,13 @@ class ProjectScoringSystem:
             conn.close()
     
     @staticmethod
-    def verify_user(username: str, password: str) -> Optional[Dict]:
-        """ตรวจสอบ login และสถานะอนุมัติ"""
+    def verify_user(email_or_username: str, password: str) -> Optional[Dict]:
+        """ตรวจสอบ login และสถานะอนุมัติ (รองรับทั้ง email และ username)"""
         conn = ProjectScoringSystem.get_db()
         cursor = conn.cursor()
         
-        cursor.execute('SELECT * FROM users WHERE username = ?', (username,))
+        # ค้นหาด้วย email หรือ username
+        cursor.execute('SELECT * FROM users WHERE email = ? OR username = ?', (email_or_username, email_or_username))
         user = cursor.fetchone()
         conn.close()
         
@@ -483,7 +484,9 @@ def admin_dashboard():
 def api_login():
     """API login"""
     data = request.json
-    user = ProjectScoringSystem.verify_user(data['username'], data['password'])
+    # รองรับทั้ง email และ username (backward compatible)
+    email_or_username = data.get('email') or data.get('username')
+    user = ProjectScoringSystem.verify_user(email_or_username, data['password'])
     
     if user:
         # ตรวจสอบว่ายังไม่ approved
