@@ -208,8 +208,8 @@ class ProjectScoringSystem:
     
     @staticmethod
     def create_user(username: str, password: str, first_name: str, 
-                   last_name: str, employee_id: str, role: str = 'employee') -> int:
-        """สร้าง user ใหม่"""
+                   last_name: str, employee_id: str, email: str, role: str = 'employee') -> int:
+        """สร้าง user ใหม่ (รอ admin อนุมัติ)"""
         conn = ProjectScoringSystem.get_db()
         cursor = conn.cursor()
         
@@ -219,10 +219,10 @@ class ProjectScoringSystem:
         try:
             cursor.execute('''
                 INSERT INTO users (username, password, first_name, last_name, 
-                                 employee_id, role, created_date)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                                 employee_id, email, role, approved, created_date)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (username, hashed_password, first_name, last_name, 
-                  employee_id, role, current_time))
+                  employee_id, email, role, 0, current_time))  # approved = 0 (รออนุมัติ)
             
             user_id = cursor.lastrowid
             conn.commit()
@@ -234,7 +234,7 @@ class ProjectScoringSystem:
     
     @staticmethod
     def verify_user(username: str, password: str) -> Optional[Dict]:
-        """ตรวจสอบ login"""
+        """ตรวจสอบ login และสถานะอนุมัติ"""
         conn = ProjectScoringSystem.get_db()
         cursor = conn.cursor()
         
@@ -243,7 +243,11 @@ class ProjectScoringSystem:
         conn.close()
         
         if user and check_password_hash(user['password'], password):
-            return dict(user)
+            user_dict = dict(user)
+            # ตรวจสอบว่าได้รับการอนุมัติแล้วหรือไม่
+            if user_dict.get('approved', 0) == 0:
+                return {'error': 'รอการอนุมัติจากผู้ดูแลระบบ', 'approved': False}
+            return user_dict
         return None
     
     @staticmethod
@@ -482,6 +486,10 @@ def api_login():
     user = ProjectScoringSystem.verify_user(data['username'], data['password'])
     
     if user:
+        # ตรวจสอบว่ายังไม่ approved
+        if user.get('approved') == False:
+            return jsonify({'success': False, 'error': user.get('error', 'รอการอนุมัติจากผู้ดูแลระบบ')}), 403
+        
         session.permanent = True  # ใช้ PERMANENT_SESSION_LIFETIME
         session['user_id'] = user['id']
         session['username'] = user['username']
@@ -496,7 +504,7 @@ def api_login():
             'redirect': '/admin' if user['role'] == 'admin' else '/dashboard'
         })
     
-    return jsonify({'success': False, 'error': 'Invalid username or password'}), 401
+    return jsonify({'success': False, 'error': 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง'}), 401
 
 
 @app.route('/api/register', methods=['POST'])
@@ -504,18 +512,24 @@ def api_register():
     """API สมัครสมาชิก"""
     data = request.json
     
+    # ตรวจสอบ email domain
+    email = data.get('email', '')
+    if not email.endswith('@g-able.com'):
+        return jsonify({'success': False, 'error': 'อีเมลต้องเป็น @g-able.com เท่านั้น'}), 400
+    
     user_id = ProjectScoringSystem.create_user(
         data['username'],
         data['password'],
         data['first_name'],
         data['last_name'],
-        data['employee_id']
+        data['employee_id'],
+        email
     )
     
     if user_id:
-        return jsonify({'success': True})
+        return jsonify({'success': True, 'message': 'สมัครสมาชิกสำเร็จ รอผู้ดูแลระบบอนุมัติ'})
     
-    return jsonify({'success': False, 'error': 'Username or Employee ID already exists'}), 400
+    return jsonify({'success': False, 'error': 'Username, Employee ID หรือ Email ถูกใช้งานแล้ว'}), 400
 
 
 @app.route('/api/logout', methods=['POST'])
