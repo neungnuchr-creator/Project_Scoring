@@ -1004,7 +1004,7 @@
                     </div>
                     <div class="menu-item" data-page="projects" onclick="switchPage('projects')">
                         <i class="fas fa-project-diagram"></i>
-                        <span>Projects Management</span>
+                        <span>Project Score</span>
                     </div>
                 </div>
 
@@ -1047,7 +1047,7 @@
                 <section id="dashboard-section" class="page-section active">
                     <!-- Statistics Cards -->
                     <div class="stats-grid">
-                        <div class="stat-card">
+                        <div class="stat-card" onclick="switchPage('projects')" style="cursor: pointer;">
                             <div class="stat-icon purple">
                                 <i class="fas fa-project-diagram"></i>
                             </div>
@@ -1215,13 +1215,13 @@
                     </div>
                 </section>
 
-                <!-- Projects Management Section -->
+                <!-- Project Score Section -->
                 <section id="projects-section" class="page-section">
                     <div class="content-card">
                         <div class="card-header">
                             <h3 class="card-title">
                                 <i class="fas fa-database"></i>
-                                Projects Management
+                                Project Score
                             </h3>
                         </div>
 
@@ -1373,7 +1373,7 @@
                 'dashboard': 'Dashboard',
                 'user-management': 'User Management',
                 'role-management': 'Role Management',
-                'projects': 'Projects Management',
+                'projects': 'Project Score',
                 'settings': 'System Settings'
             };
             document.getElementById('pageTitle').textContent = titles[pageName];
@@ -1787,13 +1787,14 @@
             }, 3000);
         }
 
-        // ==================== Projects Management ====================
+        // ==================== Project Score ====================
 
         // Load all projects
         async function loadProjects() {
             setLoading(true);
             
             try {
+                console.log('🔄 Loading projects from API...');
                 const response = await fetch('/api/projects');
                 
                 if (!response.ok) {
@@ -1805,6 +1806,7 @@
                 }
 
                 allProjects = await response.json();
+                console.log('✅ Loaded projects from API:', allProjects.length, 'projects');
                 displayProjects(allProjects);
             } catch (error) {
                 console.error('Error loading projects:', error);
@@ -1818,6 +1820,9 @@
         function displayProjects(projects) {
             const tbody = document.getElementById('projectsList');
             tbody.innerHTML = '';
+
+            console.log('📊 Displaying projects:', projects.length, 'projects');
+            console.log('📋 Projects data:', projects);
 
             if (projects.length === 0) {
                 tbody.innerHTML = `
@@ -1986,7 +1991,8 @@
         (async function() {
             await Promise.all([
                 loadStatistics(),
-                loadUsers()
+                loadUsers(),
+                loadProjects()
             ]);
         })();
 
@@ -1994,6 +2000,9 @@
         setInterval(() => {
             loadStatistics();
             loadUsers();
+            if (document.getElementById('projects-section').classList.contains('active')) {
+                loadProjects();
+            }
         }, 30000);
     </script>
 </body>
