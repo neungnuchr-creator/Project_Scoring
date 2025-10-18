@@ -1014,6 +1014,87 @@ def export_admin_pdf():
         return jsonify({'success': False, 'error': str(e)}), 400
 
 
+# ==================== User Management APIs ====================
+
+@app.route('/api/admin/users', methods=['GET'])
+@admin_required
+def get_all_users():
+    """ดึงรายการ users ทั้งหมด (สำหรับ admin)"""
+    conn = ProjectScoringSystem.get_db()
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT id, username, first_name, last_name, employee_id, email, role, approved, created_date
+        FROM users
+        ORDER BY created_date DESC
+    ''')
+    
+    users = []
+    for row in cursor.fetchall():
+        users.append(dict(row))
+    
+    conn.close()
+    return jsonify({'success': True, 'users': users})
+
+
+@app.route('/api/admin/users/<int:user_id>/approve', methods=['POST'])
+@admin_required
+def approve_user(user_id):
+    """อนุมัติ user"""
+    conn = ProjectScoringSystem.get_db()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('UPDATE users SET approved = 1 WHERE id = ?', (user_id,))
+        conn.commit()
+        
+        # ดึงข้อมูล user ที่อนุมัติ
+        cursor.execute('SELECT first_name, last_name, email FROM users WHERE id = ?', (user_id,))
+        user = cursor.fetchone()
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True, 
+            'message': f'อนุมัติ {user["first_name"]} {user["last_name"]} สำเร็จ'
+        })
+    except Exception as e:
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+
+@app.route('/api/admin/users/<int:user_id>/reject', methods=['POST'])
+@admin_required  
+def reject_user(user_id):
+    """ปฏิเสธ user (ลบออกจากระบบ)"""
+    conn = ProjectScoringSystem.get_db()
+    cursor = conn.cursor()
+    
+    try:
+        # ดึงข้อมูล user ก่อนลบ
+        cursor.execute('SELECT first_name, last_name FROM users WHERE id = ?', (user_id,))
+        user = cursor.fetchone()
+        
+        if not user:
+            return jsonify({'success': False, 'error': 'User not found'}), 404
+        
+        # ลบ projects ของ user ก่อน (foreign key constraint)
+        cursor.execute('DELETE FROM projects WHERE user_id = ?', (user_id,))
+        
+        # ลบ user
+        cursor.execute('DELETE FROM users WHERE id = ?', (user_id,))
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'message': f'ปฏิเสธและลบ {user["first_name"]} {user["last_name"]} สำเร็จ'
+        })
+    except Exception as e:
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(debug=False, host='0.0.0.0', port=port)

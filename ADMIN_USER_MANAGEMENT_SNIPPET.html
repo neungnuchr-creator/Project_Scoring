@@ -1,0 +1,360 @@
+<!-- 
+เพิ่ม Section นี้ใน admin.html หลังจาก Statistics Cards
+วางก่อน Projects Table
+-->
+
+<!-- User Management Section -->
+<div class="card fade-in" style="animation-delay: 0.4s; margin-bottom: 30px;">
+    <div class="card-header">
+        <h2 class="card-title">
+            <i class="fas fa-users-cog"></i>
+            จัดการผู้ใช้งาน
+        </h2>
+        <div class="header-actions">
+            <span class="badge" id="pendingUsersCount" style="background: #f59e0b; color: white; padding: 8px 16px; border-radius: 20px; font-size: 14px;">
+                <i class="fas fa-clock"></i> รออนุมัติ: <span id="pendingCount">0</span>
+            </span>
+            <button class="btn-refresh" onclick="loadUsers()" style="margin-left: 10px;">
+                <i class="fas fa-sync-alt"></i>
+                รีเฟรช
+            </button>
+        </div>
+    </div>
+
+    <div class="card-body">
+        <!-- Tabs -->
+        <div class="user-tabs" style="margin-bottom: 20px; border-bottom: 2px solid #e5e7eb;">
+            <button class="user-tab active" data-tab="pending" onclick="switchUserTab('pending')">
+                <i class="fas fa-clock"></i> รออนุมัติ (<span id="pendingTabCount">0</span>)
+            </button>
+            <button class="user-tab" data-tab="approved" onclick="switchUserTab('approved')">
+                <i class="fas fa-check-circle"></i> อนุมัติแล้ว (<span id="approvedTabCount">0</span>)
+            </button>
+            <button class="user-tab" data-tab="all" onclick="switchUserTab('all')">
+                <i class="fas fa-users"></i> ทั้งหมด (<span id="allTabCount">0</span>)
+            </button>
+        </div>
+
+        <!-- Users Table -->
+        <div class="table-container" style="max-height: 500px; overflow-y: auto;">
+            <table class="projects-table">
+                <thead>
+                    <tr>
+                        <th style="width: 50px;">ID</th>
+                        <th>ชื่อ-นามสกุล</th>
+                        <th>Email</th>
+                        <th>รหัสพนักงาน</th>
+                        <th>Username</th>
+                        <th style="width: 120px;">สถานะ</th>
+                        <th style="width: 150px;">สมัครเมื่อ</th>
+                        <th style="width: 200px; text-align: center;">การจัดการ</th>
+                    </tr>
+                </thead>
+                <tbody id="usersTableBody">
+                    <tr>
+                        <td colspan="8" style="text-align: center; padding: 40px;">
+                            <div class="spinner"></div>
+                            <p style="margin-top: 10px; color: #64748b;">กำลังโหลดข้อมูล...</p>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- เพิ่ม Styles -->
+<style>
+.user-tabs {
+    display: flex;
+    gap: 10px;
+}
+
+.user-tab {
+    padding: 12px 24px;
+    background: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    color: #64748b;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-size: 14px;
+}
+
+.user-tab:hover {
+    color: var(--admin-primary);
+    background: rgba(124, 58, 237, 0.05);
+}
+
+.user-tab.active {
+    color: var(--admin-primary);
+    border-bottom-color: var(--admin-primary);
+}
+
+.status-badge {
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.status-pending {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.status-approved {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.user-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+}
+
+.btn-approve, .btn-reject {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn-approve {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+}
+
+.btn-approve:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+}
+
+.btn-reject {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+}
+
+.btn-reject:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+}
+
+.btn-approve:disabled, .btn-reject:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+</style>
+
+<!-- เพิ่ม JavaScript -->
+<script>
+// Global variables
+let currentUserTab = 'pending';
+let allUsersData = [];
+
+// Load users on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadUsers();
+    // Auto refresh every 30 seconds
+    setInterval(loadUsers, 30000);
+});
+
+// Load users from API
+async function loadUsers() {
+    try {
+        const response = await fetch('/api/admin/users');
+        const result = await response.json();
+        
+        if (result.success) {
+            allUsersData = result.users;
+            updateUserCounts();
+            displayUsers();
+        }
+    } catch (error) {
+        console.error('Error loading users:', error);
+        document.getElementById('usersTableBody').innerHTML = `
+            <tr>
+                <td colspan="8" style="text-align: center; padding: 40px; color: #ef4444;">
+                    <i class="fas fa-exclamation-circle" style="font-size: 32px; margin-bottom: 10px;"></i>
+                    <p>เกิดข้อผิดพลาดในการโหลดข้อมูล</p>
+                </td>
+            </tr>
+        `;
+    }
+}
+
+// Update user counts
+function updateUserCounts() {
+    const pendingCount = allUsersData.filter(u => u.approved === 0 && u.role !== 'admin').length;
+    const approvedCount = allUsersData.filter(u => u.approved === 1 && u.role !== 'admin').length;
+    const allCount = allUsersData.filter(u => u.role !== 'admin').length;
+    
+    document.getElementById('pendingCount').textContent = pendingCount;
+    document.getElementById('pendingTabCount').textContent = pendingCount;
+    document.getElementById('approvedTabCount').textContent = approvedCount;
+    document.getElementById('allTabCount').textContent = allCount;
+}
+
+// Switch user tab
+function switchUserTab(tab) {
+    currentUserTab = tab;
+    
+    // Update tab active state
+    document.querySelectorAll('.user-tab').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+    
+    // Display filtered users
+    displayUsers();
+}
+
+// Display users based on current tab
+function displayUsers() {
+    const tbody = document.getElementById('usersTableBody');
+    
+    // Filter users (exclude admin)
+    let filteredUsers = allUsersData.filter(u => u.role !== 'admin');
+    
+    if (currentUserTab === 'pending') {
+        filteredUsers = filteredUsers.filter(u => u.approved === 0);
+    } else if (currentUserTab === 'approved') {
+        filteredUsers = filteredUsers.filter(u => u.approved === 1);
+    }
+    
+    if (filteredUsers.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8" style="text-align: center; padding: 40px; color: #64748b;">
+                    <i class="fas fa-inbox" style="font-size: 48px; margin-bottom: 10px; opacity: 0.3;"></i>
+                    <p>ไม่มีข้อมูล</p>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    tbody.innerHTML = filteredUsers.map(user => `
+        <tr>
+            <td>${user.id}</td>
+            <td>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, var(--admin-primary), var(--admin-secondary)); display: flex; align-items: center; justify-content: center; color: white; font-weight: 600;">
+                        ${user.first_name[0]}${user.last_name[0]}
+                    </div>
+                    <div>
+                        <strong>${user.first_name} ${user.last_name}</strong>
+                    </div>
+                </div>
+            </td>
+            <td>${user.email}</td>
+            <td><span class="employee-badge">${user.employee_id}</span></td>
+            <td>${user.username}</td>
+            <td>
+                ${user.approved === 1 ? 
+                    '<span class="status-badge status-approved"><i class="fas fa-check-circle"></i> อนุมัติแล้ว</span>' :
+                    '<span class="status-badge status-pending"><i class="fas fa-clock"></i> รออนุมัติ</span>'
+                }
+            </td>
+            <td>${formatDate(user.created_date)}</td>
+            <td>
+                <div class="user-actions">
+                    ${user.approved === 0 ? `
+                        <button class="btn-approve" onclick="approveUser(${user.id}, '${user.first_name} ${user.last_name}')">
+                            <i class="fas fa-check"></i> อนุมัติ
+                        </button>
+                        <button class="btn-reject" onclick="rejectUser(${user.id}, '${user.first_name} ${user.last_name}')">
+                            <i class="fas fa-times"></i> ปฏิเสธ
+                        </button>
+                    ` : `
+                        <span style="color: #10b981; font-size: 13px;">
+                            <i class="fas fa-check-circle"></i> อนุมัติแล้ว
+                        </span>
+                    `}
+                </div>
+            </td>
+        </tr>
+    `).join('');
+}
+
+// Approve user
+async function approveUser(userId, userName) {
+    if (!confirm(`ยืนยันการอนุมัติ ${userName}?`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/admin/users/${userId}/approve`, {
+            method: 'POST'
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showNotification(result.message, 'success');
+            loadUsers(); // Reload users
+        } else {
+            showNotification(result.error || 'เกิดข้อผิดพลาด', 'error');
+        }
+    } catch (error) {
+        console.error('Error approving user:', error);
+        showNotification('เกิดข้อผิดพลาดในการอนุมัติ', 'error');
+    }
+}
+
+// Reject user
+async function rejectUser(userId, userName) {
+    if (!confirm(`⚠️ ยืนยันการปฏิเสธและลบ ${userName} ออกจากระบบ?\n\nการกระทำนี้ไม่สามารถยกเลิกได้!`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/admin/users/${userId}/reject`, {
+            method: 'POST'
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showNotification(result.message, 'success');
+            loadUsers(); // Reload users
+        } else {
+            showNotification(result.error || 'เกิดข้อผิดพลาด', 'error');
+        }
+    } catch (error) {
+        console.error('Error rejecting user:', error);
+        showNotification('เกิดข้อผิดพลาดในการปฏิเสธ', 'error');
+    }
+}
+
+// Format date
+function formatDate(dateStr) {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('th-TH', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+// Show notification (ถ้ายังไม่มีให้เพิ่ม)
+function showNotification(message, type = 'info') {
+    // สามารถใช้ alert ชั่วคราว หรือสร้าง notification component
+    alert(message);
+}
+</script>
+
