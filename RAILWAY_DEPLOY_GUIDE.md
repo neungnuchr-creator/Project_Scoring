@@ -448,12 +448,304 @@ secrets.token_hex(32)
 
 ---
 
+## 🔐 การเปลี่ยนรหัสผ่าน Admin
+
+### ⚠️ สำคัญมาก: ต้องเปลี่ยนรหัสผ่าน Default ทันที!
+
+---
+
+### วิธีที่ 1: ใช้ Script (แนะนำ - ง่ายที่สุด)
+
+**ขั้นตอน:**
+
+1. **Clone repository ลงเครื่อง (ถ้ายังไม่ได้ทำ)**
+   ```bash
+   git clone https://github.com/YOUR_USERNAME/project-scoring-system.git
+   cd project-scoring-system
+   ```
+
+2. **ติดตั้ง dependencies**
+   ```bash
+   pip install werkzeug
+   ```
+
+3. **Download database จาก Railway (ถ้าต้องการ)**
+   ```bash
+   railway link
+   railway run python
+   # แล้ว copy database file
+   ```
+
+4. **รัน script เปลี่ยนรหัสผ่าน**
+   ```bash
+   python change_admin_password.py
+   ```
+
+5. **ทำตามขั้นตอน:**
+   ```
+   รหัสผ่านใหม่: ********** (กรอกรหัสผ่านใหม่)
+   ยืนยันรหัสผ่าน: ********** (กรอกอีกครั้ง)
+   ✅ เปลี่ยนรหัสผ่านสำเร็จ!
+   ```
+
+6. **Upload database กลับไปที่ Railway**
+   ```bash
+   # ใช้ Railway CLI หรือ commit และ redeploy
+   ```
+
+---
+
+### วิธีที่ 2: ใช้ Railway CLI
+
+**ขั้นตอน:**
+
+1. **ติดตั้ง Railway CLI**
+   ```bash
+   # Windows PowerShell
+   iwr https://railway.app/install.ps1 -useb | iex
+   
+   # Mac/Linux
+   sh -c "$(curl -sSL https://railway.app/install.sh)"
+   ```
+
+2. **Login และ Link Project**
+   ```bash
+   railway login
+   cd project-scoring-system
+   railway link
+   ```
+
+3. **เปิด Shell บน Railway**
+   ```bash
+   railway shell
+   ```
+
+4. **รัน Python**
+   ```bash
+   python
+   ```
+
+5. **เปลี่ยนรหัสผ่าน**
+   ```python
+   from werkzeug.security import generate_password_hash
+   import sqlite3
+   
+   # กำหนดรหัสผ่านใหม่
+   new_password = "YOUR_NEW_STRONG_PASSWORD"  # เปลี่ยนตรงนี้!
+   
+   # Hash password
+   hashed = generate_password_hash(new_password)
+   
+   # Update database
+   conn = sqlite3.connect('project_scoring.db')
+   cursor = conn.cursor()
+   cursor.execute("UPDATE users SET password = ? WHERE username = 'admin'", (hashed,))
+   conn.commit()
+   conn.close()
+   
+   print("✅ Password changed successfully!")
+   ```
+
+6. **ออกจาก Python**
+   ```python
+   exit()
+   ```
+
+7. **Restart Service**
+   - ไปที่ Railway Dashboard → Deployments → Restart
+
+---
+
+### วิธีที่ 3: สร้าง Admin ใหม่และลบเก่า
+
+**ขั้นตอน:**
+
+1. **สมัครสมาชิกใหม่** ที่หน้าเว็บ (ใช้ email @g-able.com)
+
+2. **ใช้ Railway CLI เข้า database**
+   ```bash
+   railway shell
+   python
+   ```
+
+3. **เปลี่ยน Role เป็น Admin**
+   ```python
+   import sqlite3
+   
+   conn = sqlite3.connect('project_scoring.db')
+   cursor = conn.cursor()
+   
+   # เปลี่ยน user ใหม่เป็น admin
+   cursor.execute("UPDATE users SET role = 'admin', approved = 1 WHERE username = 'YOUR_NEW_USERNAME'")
+   
+   # ลบ admin เก่า
+   cursor.execute("DELETE FROM users WHERE username = 'admin'")
+   
+   conn.commit()
+   conn.close()
+   
+   print("✅ New admin created, old admin deleted!")
+   ```
+
+---
+
+### วิธีที่ 4: ผ่าน Init Admin Route (ชั่วคราว)
+
+**⚠️ วิธีนี้มีความเสี่ยง - ใช้เฉพาะในกรณีฉุกเฉิน**
+
+1. **แก้ไข app.py เพิ่ม route ชั่วคราว**
+   ```python
+   @app.route('/reset-admin-password', methods=['GET', 'POST'])
+   def reset_admin_password():
+       if request.method == 'POST':
+           from werkzeug.security import generate_password_hash
+           new_password = request.form.get('new_password')
+           hashed = generate_password_hash(new_password)
+           
+           conn = ProjectScoringSystem.get_db()
+           cursor = conn.cursor()
+           cursor.execute("UPDATE users SET password = ? WHERE username = 'admin'", (hashed,))
+           conn.commit()
+           conn.close()
+           
+           return jsonify({'success': True, 'message': 'Password changed!'})
+       
+       return '''
+       <form method="post">
+           New Password: <input type="password" name="new_password" required>
+           <button type="submit">Change Password</button>
+       </form>
+       '''
+   ```
+
+2. **Push และ Deploy**
+
+3. **เข้าไปที่:**
+   ```
+   https://your-app.up.railway.app/reset-admin-password
+   ```
+
+4. **⚠️ ลบ route ทันทีหลังใช้งาน!**
+
+---
+
+## 💡 ข้อกำหนดรหัสผ่านที่ดี
+
+### ✅ รหัสผ่านที่แข็งแรง:
+
+**ความยาว:**
+- อย่างน้อย 12 ตัวอักษร
+- แนะนำ 16+ ตัวอักษร
+
+**ความซับซ้อน:**
+- ✅ ตัวพิมพ์ใหญ่ (A-Z)
+- ✅ ตัวพิมพ์เล็ก (a-z)
+- ✅ ตัวเลข (0-9)
+- ✅ สัญลักษณ์พิเศษ (!@#$%^&*)
+
+**ตัวอย่างรหัสผ่านที่ดี:**
+```
+MySecure@Pass2025!
+G-able#Proj2025Strong
+Admin$Railway!2025Secure
+P@ssw0rd!Scoring#2025
+```
+
+**ตัวอย่างรหัสผ่านที่ไม่ดี:**
+```
+❌ admin123
+❌ password
+❌ 12345678
+❌ gable2025
+❌ projectscoring
+```
+
+---
+
+## 🔒 การตรวจสอบว่าเปลี่ยนสำเร็จ
+
+### วิธีทดสอบ:
+
+1. **ออกจากระบบ (Logout)**
+
+2. **พยายาม Login ด้วยรหัสผ่านเก่า**
+   - ถ้า Login ไม่ได้ = ✅ สำเร็จ!
+   - ถ้า Login ได้ = ❌ ยังไม่เปลี่ยน
+
+3. **Login ด้วยรหัสผ่านใหม่**
+   - ถ้า Login ได้ = ✅ สำเร็จ!
+
+---
+
+## 📝 บันทึกรหัสผ่านให้ปลอดภัย
+
+### แนะนำ Password Managers:
+
+**ฟรี:**
+- ✅ **Bitwarden** (Open Source)
+- ✅ **LastPass** (Free tier)
+- ✅ **KeePass** (Offline)
+
+**Premium:**
+- 💎 **1Password**
+- 💎 **Dashlane**
+- 💎 **NordPass**
+
+### ไม่แนะนำ:
+- ❌ บันทึกใน Notepad/Text file
+- ❌ เขียนไว้บน Post-it
+- ❌ ส่งใน Email/Chat
+- ❌ เก็บใน Browser (ถ้าไม่มี Master Password)
+
+---
+
+## 🚨 ถ้าลืมรหัสผ่าน
+
+### วิธีแก้:
+
+**ไม่มีระบบ Reset Password อัตโนมัติ ต้องทำด้วยตนเอง:**
+
+1. **ใช้ Railway CLI**
+   ```bash
+   railway shell
+   python change_admin_password.py
+   ```
+
+2. **หรือสร้าง Admin ใหม่**
+   - ตามวิธีที่ 3 ด้านบน
+
+3. **หรือ Restore จาก Backup**
+   - ถ้ามี database backup
+
+---
+
+## 🔐 Security Checklist
+
+หลังจาก Deploy แล้ว ต้องทำ:
+
+- [ ] ✅ เปลี่ยนรหัสผ่าน admin ทันที
+- [ ] ✅ ใช้รหัสผ่านที่แข็งแรง (12+ ตัวอักษร)
+- [ ] ✅ เก็บรหัสผ่านใน Password Manager
+- [ ] ✅ ลบ /init-admin route (ถ้ามี)
+- [ ] ✅ ลบ /reset-admin-password route (ถ้ามี)
+- [ ] ✅ เปิดใช้ HTTPS (Railway ทำให้อัตโนมัติ)
+- [ ] ✅ ตั้งค่า Environment Variables
+- [ ] ✅ Backup database
+- [ ] ✅ ตรวจสอบ logs เป็นประจำ
+
+---
+
 ## 📞 ติดต่อ
 
 ถ้ามีปัญหาหรือคำถาม:
 1. ดู Logs ใน Railway Dashboard
 2. ตรวจสอบ GitHub repository
 3. ลอง redeploy
+4. อ่าน `SECURITY_GUIDE.md` สำหรับรายละเอียดเพิ่มเติม
+
+**หากพบปัญหาด้านความปลอดภัย:**
+- แจ้งทีม IT Security ทันที
+- ส่ง email: security@g-able.com
 
 ---
 

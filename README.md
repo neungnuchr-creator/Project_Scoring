@@ -4,12 +4,15 @@ Web Application สำหรับจัดการและคำนวณค�
 
 ## ✨ คุณสมบัติ
 
-- **คำนวณคะแนนอัตโนมัติ** - คำนวณตามสูตร: (Progress × Difficulty × Customer Type) × 100
+- **คำนวณคะแนนอัตโนมัติ** - คำนวณตามสูตรที่ซับซ้อนพร้อม Baseline PM Effort
 - **จัดเก็บข้อมูลใน Local Database** - ใช้ SQLite เก็บข้อมูลในเครื่อง
 - **แสดงสถิติโครงการ** - สรุปข้อมูลโครงการแบบ Real-time
 - **UI สวยงามและใช้งานง่าย** - ออกแบบด้วย Modern UI/UX
 - **CRUD Operations** - สร้าง แก้ไข ลบ และดูข้อมูลโครงการ
 - **Responsive Design** - รองรับทั้ง Desktop และ Tablet
+- **Export PDF** - สร้างรายงานพร้อม Summary
+- **Role-Based Access** - แยก User และ Admin Dashboard
+- **Custom Scrollbar** - Scrollbar สวยงามทุกหน้า
 
 ## 📋 โครงสร้างโปรเจกต์
 
@@ -237,16 +240,67 @@ app.run(debug=False, host='0.0.0.0', port=8000)
 # หรือลบไฟล์ project_scoring.db แล้วรันใหม่
 ```
 
+## 🔐 ความปลอดภัย
+
+### เปลี่ยนรหัสผ่าน Admin
+
+**⚠️ สำคัญมาก:** ต้องเปลี่ยนรหัสผ่าน admin ทันทีหลัง setup!
+
+**วิธีเปลี่ยนรหัสผ่าน:**
+```bash
+python change_admin_password.py
+```
+
+**ข้อมูล Login:**
+- ดูในไฟล์ `ADMIN_CREDENTIALS.txt` (ไม่ถูก commit ใน Git)
+- ไฟล์นี้เก็บข้อมูล credentials อย่างปลอดภัย
+
+**คู่มือเพิ่มเติม:**
+- 📖 [CHANGE_PASSWORD_GUIDE.md](CHANGE_PASSWORD_GUIDE.md) - วิธีเปลี่ยนรหัสผ่านแบบละเอียด
+- 📖 [SECURITY_GUIDE.md](SECURITY_GUIDE.md) - คู่มือความปลอดภัยฉบับเต็ม
+
+---
+
+## 📚 เอกสารเพิ่มเติม
+
+| คู่มือ | เนื้อหา |
+|-------|---------|
+| [QUICK_START.md](QUICK_START.md) | เริ่มต้นใช้งานอย่างรวดเร็ว |
+| [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) | Deploy บน Cloud |
+| [RAILWAY_DEPLOY_GUIDE.md](RAILWAY_DEPLOY_GUIDE.md) | Deploy บน Railway.app |
+| [DOCKER_GUIDE.md](DOCKER_GUIDE.md) | รัน Docker |
+| [README_DOCKER.md](README_DOCKER.md) | Docker Quick Start |
+| [SECURITY_GUIDE.md](SECURITY_GUIDE.md) | คู่มือความปลอดภัย |
+| [CHANGE_PASSWORD_GUIDE.md](CHANGE_PASSWORD_GUIDE.md) | วิธีเปลี่ยนรหัสผ่าน |
+| [ADMIN_CREDENTIALS.txt](ADMIN_CREDENTIALS.txt) | ข้อมูล Login (confidential) |
+
+---
+
 ## 📞 ติดต่อและสนับสนุน
 
 หากพบปัญหาหรือต้องการความช่วยเหลือ:
-1. ตรวจสอบ DEPLOYMENT_GUIDE.md
-2. ดู log ของ error ที่ console
+1. อ่านคู่มือที่เกี่ยวข้องก่อน
+2. ตรวจสอบ logs ของ error
 3. ตรวจสอบว่าติดตั้ง dependencies ครบถ้วน
+
+**หากพบปัญหาด้านความปลอดภัย:**
+- แจ้งทีม IT Security ทันที
+- Email: security@g-able.com
+
+---
 
 ## 📄 License
 
 MIT License - ใช้งานได้อย่างอิสระ
+
+---
+
+## 🏆 Credits
+
+**พัฒนาโดย:** G-Able IT Team  
+**เทคโนโลยี:** Flask, SQLite, ReportLab  
+**Version:** 4.1  
+**อัพเดทล่าสุด:** October 2025
 
 ---
 

@@ -113,13 +113,23 @@ railway run python clear_database.py
 
 ---
 
-## 🔑 Default Credentials
+## 🔑 การเข้าสู่ระบบ
 
-**Admin:**
-- Username: `admin`
-- Password: `admin123`
+**สำหรับผู้ดูแลระบบ:**
+- ดูข้อมูล login ในไฟล์ `ADMIN_CREDENTIALS.txt`
+- ⚠️ **สำคัญ:** เปลี่ยน password ทันทีหลัง login ครั้งแรก!
 
-**⚠️ เปลี่ยน password ทันทีหลัง login!**
+**วิธีเปลี่ยนรหัสผ่าน:**
+```bash
+# Local
+python change_admin_password.py
+
+# Railway
+railway shell
+python change_admin_password.py
+```
+
+📖 **อ่านเพิ่มเติม:** [RAILWAY_DEPLOY_GUIDE.md](RAILWAY_DEPLOY_GUIDE.md#การเปลี่ยนรหัสผ่าน-admin)
 
 ---
 

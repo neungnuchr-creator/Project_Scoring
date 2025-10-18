@@ -104,7 +104,9 @@ class ProjectScoringSystem:
                 first_name TEXT NOT NULL,
                 last_name TEXT NOT NULL,
                 employee_id TEXT UNIQUE NOT NULL,
+                email TEXT UNIQUE NOT NULL,
                 role TEXT NOT NULL DEFAULT 'employee',
+                approved INTEGER NOT NULL DEFAULT 0,
                 created_date TEXT NOT NULL
             )
         ''')

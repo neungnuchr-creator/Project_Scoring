@@ -102,10 +102,11 @@ def clear_and_init_database():
     print("✅ Database สร้างเสร็จแล้ว!")
     print("=" * 50)
     print("\n📝 ข้อมูล Login:")
-    print("   Admin: admin / admin123")
-    print("   User1: user1 / user123")
-    print("   User2: user2 / user123")
-    print("   User3: user3 / user123")
+    print("   ✅ Admin user ถูกสร้างแล้ว")
+    print("   ✅ Demo users ถูกสร้างแล้ว (3 คน)")
+    print("\n⚠️  สำคัญ:")
+    print("   - เปลี่ยนรหัสผ่าน admin ทันทีหลัง login ครั้งแรก")
+    print("   - ข้อมูล login เก็บไว้ในเอกสารที่ปลอดภัย")
     print("\n🚀 พร้อมใช้งานแล้ว!")
 
 if __name__ == '__main__':

@@ -243,6 +243,243 @@ docker images
 
 ---
 
+## 🔐 การเปลี่ยนรหัสผ่าน Admin
+
+### ⚠️ สำคัญมาก: เปลี่ยนรหัสผ่าน Default ทันที!
+
+---
+
+### วิธีที่ 1: เข้าไปใน Docker Container (แนะนำ)
+
+**ขั้นตอน:**
+
+1. **ตรวจสอบ Container ที่รันอยู่**
+   ```bash
+   docker ps
+   ```
+
+2. **เข้าไปใน Container**
+   ```bash
+   docker exec -it project-scoring /bin/bash
+   ```
+
+3. **รัน Script เปลี่ยนรหัสผ่าน**
+   ```bash
+   python change_admin_password.py
+   ```
+
+4. **ทำตามขั้นตอน:**
+   ```
+   รหัสผ่านใหม่: ********** (กรอกรหัสผ่านใหม่)
+   ยืนยันรหัสผ่าน: ********** (กรอกอีกครั้ง)
+   ✅ เปลี่ยนรหัสผ่านสำเร็จ!
+   ```
+
+5. **ออกจาก Container**
+   ```bash
+   exit
+   ```
+
+6. **Restart Container (ถ้าจำเป็น)**
+   ```bash
+   docker restart project-scoring
+   ```
+
+---
+
+### วิธีที่ 2: ใช้ docker exec โดยตรง
+
+**ขั้นตอน:**
+
+```bash
+# รัน Python command ใน container
+docker exec -it project-scoring python3 << EOF
+from werkzeug.security import generate_password_hash
+import sqlite3
+
+# กำหนดรหัสผ่านใหม่
+new_password = "YOUR_NEW_STRONG_PASSWORD"  # เปลี่ยนตรงนี้!
+
+# Hash password
+hashed = generate_password_hash(new_password)
+
+# Update database
+conn = sqlite3.connect('project_scoring.db')
+cursor = conn.cursor()
+cursor.execute("UPDATE users SET password = ? WHERE username = 'admin'", (hashed,))
+conn.commit()
+conn.close()
+
+print("✅ Password changed successfully!")
+EOF
+```
+
+---
+
+### วิธีที่ 3: ใช้ docker-compose
+
+**ขั้นตอน:**
+
+1. **เข้าไปใน Container**
+   ```bash
+   docker-compose exec project-scoring /bin/bash
+   ```
+
+2. **รัน Script**
+   ```bash
+   python change_admin_password.py
+   ```
+
+3. **ออกและ Restart**
+   ```bash
+   exit
+   docker-compose restart
+   ```
+
+---
+
+### วิธีที่ 4: แก้ไขก่อน Build Docker Image
+
+**ขั้นตอน:**
+
+1. **รัน Script ที่เครื่อง Local**
+   ```bash
+   python change_admin_password.py
+   ```
+
+2. **Build Docker Image ใหม่**
+   ```bash
+   docker build -t project-scoring-system .
+   ```
+
+3. **Run Container**
+   ```bash
+   docker-compose up -d
+   ```
+
+---
+
+## 💡 ข้อกำหนดรหัสผ่านที่ดี
+
+### ✅ รหัสผ่านที่แข็งแรง:
+
+**ความยาว:**
+- อย่างน้อย 12 ตัวอักษร
+- แนะนำ 16+ ตัวอักษร
+
+**ความซับซ้อน:**
+- ✅ ตัวพิมพ์ใหญ่ (A-Z)
+- ✅ ตัวพิมพ์เล็ก (a-z)
+- ✅ ตัวเลข (0-9)
+- ✅ สัญลักษณ์พิเศษ (!@#$%^&*)
+
+**ตัวอย่างรหัสผ่านที่ดี:**
+```
+MySecure@Pass2025!
+G-able#Docker2025Strong
+Admin$Container!2025Secure
+P@ssw0rd!Scoring#2025
+```
+
+**ตัวอย่างรหัสผ่านที่ไม่ดี:**
+```
+❌ admin123
+❌ password
+❌ 12345678
+❌ docker2025
+❌ projectscoring
+```
+
+---
+
+## 🔒 การตรวจสอบว่าเปลี่ยนสำเร็จ
+
+### วิธีทดสอบ:
+
+1. **ออกจากระบบ (Logout)**
+
+2. **พยายาม Login ด้วยรหัสผ่านเก่า**
+   - ถ้า Login ไม่ได้ = ✅ สำเร็จ!
+   - ถ้า Login ได้ = ❌ ยังไม่เปลี่ยน
+
+3. **Login ด้วยรหัสผ่านใหม่**
+   - ถ้า Login ได้ = ✅ สำเร็จ!
+
+---
+
+## 🚨 ถ้าลืมรหัสผ่าน
+
+### วิธีแก้:
+
+**ตัวเลือกที่ 1: Reset ผ่าน Container**
+```bash
+docker exec -it project-scoring python change_admin_password.py
+```
+
+**ตัวเลือกที่ 2: Clear Database และสร้างใหม่**
+```bash
+docker exec -it project-scoring python clear_database.py
+# พิมพ์: yes
+```
+
+**ตัวเลือกที่ 3: Restart Container ใหม่**
+```bash
+docker-compose down -v  # ลบ volume (database หาย!)
+docker-compose up --build
+```
+
+---
+
+## 🔐 Security Checklist สำหรับ Docker
+
+หลังจากรัน Docker แล้ว ต้องทำ:
+
+- [ ] ✅ เปลี่ยนรหัสผ่าน admin ทันที
+- [ ] ✅ ใช้รหัสผ่านที่แข็งแรง (12+ ตัวอักษร)
+- [ ] ✅ เก็บรหัสผ่านใน Password Manager
+- [ ] ✅ ไม่แชร์ข้อมูล credentials
+- [ ] ✅ Backup database volume เป็นประจำ
+- [ ] ✅ อัพเดท Docker image เป็นประจำ
+- [ ] ✅ ใช้ Docker secrets (ถ้ารัน production)
+- [ ] ✅ จำกัดการเข้าถึง Container
+
+---
+
+## 📦 Backup Database ใน Docker
+
+### วิธี Backup:
+
+**1. Copy database ออกจาก Container:**
+```bash
+docker cp project-scoring:/app/project_scoring.db ./backup_$(date +%Y%m%d).db
+```
+
+**2. Backup Volume:**
+```bash
+docker run --rm \
+  -v project-data:/data \
+  -v $(pwd):/backup \
+  alpine tar czf /backup/backup_$(date +%Y%m%d).tar.gz /data
+```
+
+### วิธี Restore:
+
+**1. Copy database เข้า Container:**
+```bash
+docker cp backup_20251018.db project-scoring:/app/project_scoring.db
+docker restart project-scoring
+```
+
+**2. Restore Volume:**
+```bash
+docker run --rm \
+  -v project-data:/data \
+  -v $(pwd):/backup \
+  alpine tar xzf /backup/backup_20251018.tar.gz -C /
+```
+
+---
+
 ## 📊 ข้อมูล Demo (Database ใหม่)
 
 ### 👤 Users:
