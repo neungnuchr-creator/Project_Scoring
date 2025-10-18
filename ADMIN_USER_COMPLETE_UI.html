@@ -1,0 +1,578 @@
+<!--
+===========================================
+  COMPLETE USER MANAGEMENT UI
+  เพิ่มใน admin.html แทน Section User Management ที่มีอยู่
+===========================================
+
+ค้นหาบรรทัดนี้ใน admin.html:
+        <!-- User Management Section -->
+        <div class="content-card" style="margin-bottom: 30px;">
+
+แล้วแทนที่ทั้ง section ด้วย code ด้านล่างนี้
+-->
+
+        <!-- User Management Section - COMPLETE VERSION -->
+        <div class="content-card" style="margin-bottom: 30px;">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <i class="fas fa-users-cog"></i>
+                    จัดการผู้ใช้งาน
+                </h2>
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <span id="pendingUsersCount" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: 600; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);">
+                        <i class="fas fa-clock"></i> รออนุมัติ: <span id="pendingCount">0</span>
+                    </span>
+                    <button class="btn-refresh" onclick="loadUsers()">
+                        <i class="fas fa-sync-alt"></i>
+                        รีเฟรช Users
+                    </button>
+                </div>
+            </div>
+
+            <!-- User Tabs -->
+            <div style="padding: 20px 30px; border-bottom: 2px solid #f3e8ff;">
+                <div class="user-tabs">
+                    <button class="user-tab active" data-tab="pending" onclick="switchUserTab('pending')">
+                        <i class="fas fa-clock"></i> รออนุมัติ (<span id="pendingTabCount">0</span>)
+                    </button>
+                    <button class="user-tab" data-tab="approved" onclick="switchUserTab('approved')">
+                        <i class="fas fa-check-circle"></i> ใช้งานอยู่ (<span id="approvedTabCount">0</span>)
+                    </button>
+                    <button class="user-tab" data-tab="all" onclick="switchUserTab('all')">
+                        <i class="fas fa-users"></i> ทั้งหมด (<span id="allTabCount">0</span>)
+                    </button>
+                </div>
+            </div>
+
+            <!-- Users Table -->
+            <div class="table-wrapper" style="max-height: 500px; overflow-y: auto;">
+                <table class="projects-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 50px;">ID</th>
+                            <th style="width: 180px;">ชื่อ-นามสกุล</th>
+                            <th>Email</th>
+                            <th style="width: 110px;">รหัสพนักงาน</th>
+                            <th style="width: 100px;">Role</th>
+                            <th style="width: 110px;">สถานะ</th>
+                            <th style="width: 140px;">สมัครเมื่อ</th>
+                            <th style="width: 260px; text-align: center;">การจัดการ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTableBody">
+                        <tr>
+                            <td colspan="8" style="text-align: center; padding: 40px;">
+                                <div style="display: inline-block; width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid var(--admin-primary); border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                                <p style="margin-top: 15px; color: #64748b; font-size: 14px;">กำลังโหลดข้อมูล...</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Edit User Modal -->
+        <div id="editUserModal" class="modal" style="display: none;">
+            <div class="modal-overlay" onclick="closeEditModal()"></div>
+            <div class="modal-content" style="max-width: 600px; width: 90%;">
+                <div class="modal-header">
+                    <h2><i class="fas fa-user-edit"></i> แก้ไขข้อมูลผู้ใช้</h2>
+                    <button class="modal-close" onclick="closeEditModal()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="editUserForm" onsubmit="saveUserEdit(event)">
+                        <input type="hidden" id="editUserId">
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>ชื่อ <span style="color: #ef4444;">*</span></label>
+                                <input type="text" id="editFirstName" required>
+                            </div>
+                            <div class="form-group">
+                                <label>นามสกุล <span style="color: #ef4444;">*</span></label>
+                                <input type="text" id="editLastName" required>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>อีเมล <span style="color: #ef4444;">*</span></label>
+                            <input type="email" id="editEmail" required>
+                            <small style="color: #64748b;">ต้องเป็น @g-able.com เท่านั้น</small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>รหัสพนักงาน <span style="color: #ef4444;">*</span></label>
+                            <input type="text" id="editEmployeeId" required>
+                        </div>
+                        
+                        <div style="display: flex; gap: 10px; margin-top: 20px;">
+                            <button type="submit" class="btn btn-primary" style="flex: 1;">
+                                <i class="fas fa-save"></i> บันทึก
+                            </button>
+                            <button type="button" class="btn btn-secondary" onclick="closeEditModal()" style="flex: 1;">
+                                <i class="fas fa-times"></i> ยกเลิก
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+<!-- เพิ่ม Styles -->
+<style>
+/* Modal Styles */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+}
+
+.modal-content {
+    position: relative;
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    animation: modalSlideIn 0.3s ease;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-50px) scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.modal-header {
+    padding: 24px 30px;
+    border-bottom: 2px solid #f3e8ff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);
+    border-radius: 16px 16px 0 0;
+}
+
+.modal-header h2 {
+    margin: 0;
+    color: var(--admin-primary);
+    font-size: 20px;
+}
+
+.modal-close {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: white;
+    color: #64748b;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s;
+}
+
+.modal-close:hover {
+    background: #fee2e2;
+    color: #dc2626;
+    transform: rotate(90deg);
+}
+
+.modal-body {
+    padding: 30px;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #334155;
+    font-size: 14px;
+}
+
+.form-group input, .form-group select {
+    width: 100%;
+    padding: 12px 15px;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    font-size: 14px;
+    transition: all 0.3s;
+}
+
+.form-group input:focus, .form-group select:focus {
+    outline: none;
+    border-color: var(--admin-primary);
+    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+}
+
+.btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-size: 14px;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--admin-primary), var(--admin-secondary));
+    color: white;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(124, 58, 237, 0.4);
+}
+
+.btn-secondary {
+    background: #f1f5f9;
+    color: #64748b;
+}
+
+.btn-secondary:hover {
+    background: #e2e8f0;
+}
+
+/* Role Badge */
+.role-badge {
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+    display: inline-block;
+}
+
+.role-admin {
+    background: linear-gradient(135deg, #7c3aed, #db2777);
+    color: white;
+}
+
+.role-employee {
+    background: #e0e7ff;
+    color: #4338ca;
+}
+
+/* Role Select Dropdown */
+.role-select {
+    padding: 6px 12px;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.role-select:focus {
+    outline: none;
+    border-color: var(--admin-primary);
+}
+
+.role-select option {
+    padding: 10px;
+}
+
+/* Action Buttons - Enhanced */
+.btn-edit {
+    padding: 7px 14px;
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.btn-edit:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+.btn-delete {
+    padding: 7px 14px;
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.btn-delete:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+}
+</style>
+
+<!-- JavaScript Functions - เพิ่มใน <script> section -->
+<script>
+// ========== แทนที่ displayUsers() function ด้วย code นี้ ==========
+
+function displayUsers() {
+    const tbody = document.getElementById('usersTableBody');
+    
+    // Filter users (exclude admin from pending/approved tabs, show all in 'all' tab)
+    let filteredUsers = allUsersData;
+    
+    if (currentUserTab === 'pending') {
+        filteredUsers = filteredUsers.filter(u => u.approved === 0 && u.role !== 'admin');
+    } else if (currentUserTab === 'approved') {
+        filteredUsers = filteredUsers.filter(u => u.approved === 1);
+    }
+    // 'all' tab แสดงทุกคน
+    
+    if (filteredUsers.length === 0) {
+        const emptyMessage = currentUserTab === 'pending' 
+            ? '<p>ไม่มี users ที่รออนุมัติ 🎉</p>'
+            : currentUserTab === 'approved'
+            ? '<p>ยังไม่มี users ที่อนุมัติแล้ว</p>'
+            : '<p>ยังไม่มี users ในระบบ</p>';
+        
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8" style="text-align: center; padding: 40px; color: #64748b;">
+                    <i class="fas fa-inbox" style="font-size: 48px; margin-bottom: 10px; opacity: 0.3;"></i>
+                    ${emptyMessage}
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    tbody.innerHTML = filteredUsers.map(user => `
+        <tr style="animation: fadeIn 0.3s;">
+            <td><strong>${user.id}</strong></td>
+            <td>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, var(--admin-primary), var(--admin-secondary)); display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 14px; box-shadow: 0 4px 8px rgba(124, 58, 237, 0.3);">
+                        ${user.first_name.charAt(0)}${user.last_name.charAt(0)}
+                    </div>
+                    <div>
+                        <strong style="color: var(--dark); font-size: 14px;">${user.first_name} ${user.last_name}</strong>
+                    </div>
+                </div>
+            </td>
+            <td>
+                <i class="fas fa-envelope" style="color: var(--admin-primary); margin-right: 5px;"></i>
+                ${user.email}
+            </td>
+            <td><span class="employee-badge">${user.employee_id}</span></td>
+            <td>
+                ${user.role === 'admin' ? 
+                    '<span class="role-badge role-admin"><i class="fas fa-crown"></i> ADMIN</span>' :
+                    `<select class="role-select" onchange="changeUserRole(${user.id}, this.value, '${user.first_name} ${user.last_name}')">
+                        <option value="employee" ${user.role === 'employee' ? 'selected' : ''}>👤 Employee</option>
+                        <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>👑 Admin</option>
+                    </select>`
+                }
+            </td>
+            <td>
+                ${user.approved === 1 ? 
+                    '<span class="status-badge status-approved"><i class="fas fa-check-circle"></i> อนุมัติแล้ว</span>' :
+                    '<span class="status-badge status-pending"><i class="fas fa-clock"></i> รออนุมัติ</span>'
+                }
+            </td>
+            <td style="font-size: 12px; color: #64748b;">${formatDateTime(user.created_date)}</td>
+            <td>
+                <div class="user-actions">
+                    ${user.approved === 0 ? `
+                        <button class="btn-approve" onclick="approveUser(${user.id}, '${user.first_name} ${user.last_name}')" title="อนุมัติ">
+                            <i class="fas fa-check"></i> อนุมัติ
+                        </button>
+                    ` : ''}
+                    <button class="btn-edit" onclick="openEditModal(${user.id}, '${user.first_name}', '${user.last_name}', '${user.email}', '${user.employee_id}')" title="แก้ไข">
+                        <i class="fas fa-edit"></i> แก้ไข
+                    </button>
+                    ${user.role !== 'admin' || (user.role === 'admin' && canDeleteAdmin()) ? `
+                        <button class="btn-delete" onclick="deleteUser(${user.id}, '${user.first_name} ${user.last_name}')" title="ลบ">
+                            <i class="fas fa-trash"></i> ลบ
+                        </button>
+                    ` : ''}
+                </div>
+            </td>
+        </tr>
+    `).join('');
+}
+
+// ========== เพิ่ม Functions ใหม่ ==========
+
+// Open Edit Modal
+function openEditModal(userId, firstName, lastName, email, employeeId) {
+    document.getElementById('editUserId').value = userId;
+    document.getElementById('editFirstName').value = firstName;
+    document.getElementById('editLastName').value = lastName;
+    document.getElementById('editEmail').value = email;
+    document.getElementById('editEmployeeId').value = employeeId;
+    
+    document.getElementById('editUserModal').style.display = 'flex';
+}
+
+// Close Edit Modal
+function closeEditModal() {
+    document.getElementById('editUserModal').style.display = 'none';
+}
+
+// Save User Edit
+async function saveUserEdit(e) {
+    e.preventDefault();
+    
+    const userId = document.getElementById('editUserId').value;
+    const data = {
+        first_name: document.getElementById('editFirstName').value.trim(),
+        last_name: document.getElementById('editLastName').value.trim(),
+        email: document.getElementById('editEmail').value.trim(),
+        employee_id: document.getElementById('editEmployeeId').value.trim()
+    };
+    
+    // Validate email
+    if (!data.email.endsWith('@g-able.com')) {
+        showNotification('อีเมลต้องเป็น @g-able.com เท่านั้น', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/admin/users/${userId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showNotification(result.message, 'success');
+            closeEditModal();
+            loadUsers();
+        } else {
+            showNotification(result.error, 'error');
+        }
+    } catch (error) {
+        console.error('Error updating user:', error);
+        showNotification('เกิดข้อผิดพลาดในการแก้ไข', 'error');
+    }
+}
+
+// Delete User
+async function deleteUser(userId, userName) {
+    if (!confirm(`⚠️ ยืนยันการลบ "${userName}" ออกจากระบบ?\n\n⚠️ คำเตือน:\n- User และโครงการทั้งหมดจะถูกลบถาวร\n- ไม่สามารถกู้คืนได้!\n\nต้องการดำเนินการต่อหรือไม่?`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/admin/users/${userId}/delete`, {
+            method: 'DELETE'
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showNotification(result.message, 'success');
+            loadUsers();
+            loadProjects();
+            loadStatistics();
+        } else {
+            showNotification(result.error, 'error');
+        }
+    } catch (error) {
+        console.error('Error deleting user:', error);
+        showNotification('เกิดข้อผิดพลาดในการลบ', 'error');
+    }
+}
+
+// Change User Role
+async function changeUserRole(userId, newRole, userName) {
+    const roleText = newRole === 'admin' ? 'ผู้ดูแลระบบ' : 'พนักงาน';
+    
+    if (!confirm(`เปลี่ยน "${userName}" เป็น ${roleText}?`)) {
+        loadUsers(); // Reset dropdown
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/admin/users/${userId}/change-role`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ role: newRole })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showNotification(result.message, 'success');
+            loadUsers();
+            loadStatistics();
+        } else {
+            showNotification(result.error, 'error');
+            loadUsers(); // Reset dropdown
+        }
+    } catch (error) {
+        console.error('Error changing role:', error);
+        showNotification('เกิดข้อผิดพลาด', 'error');
+        loadUsers(); // Reset dropdown
+    }
+}
+
+// Check if can delete admin
+function canDeleteAdmin() {
+    const adminCount = allUsersData.filter(u => u.role === 'admin').length;
+    return adminCount > 1;
+}
+
+// Update user counts - แก้ไขให้นับ admin ด้วย
+function updateUserCounts() {
+    const pendingCount = allUsersData.filter(u => u.approved === 0 && u.role !== 'admin').length;
+    const approvedCount = allUsersData.filter(u => u.approved === 1).length;  // นับทั้ง admin
+    const allCount = allUsersData.length;  // นับทั้งหมดรวม admin
+    
+    document.getElementById('pendingCount').textContent = pendingCount;
+    document.getElementById('pendingTabCount').textContent = pendingCount;
+    document.getElementById('approvedTabCount').textContent = approvedCount;
+    document.getElementById('allTabCount').textContent = allCount;
+}
+</script>
+

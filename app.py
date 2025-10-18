@@ -9,6 +9,10 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 from functools import wraps
+from flask_mail import Mail, Message
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from io import BytesIO
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, landscape
@@ -22,6 +26,17 @@ from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-change-in-production-12345')
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=1)  # Session timeout 1 ชั่วโมง
+
+# Email configuration
+app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
+app.config['MAIL_PORT'] = int(os.environ.get('MAIL_PORT', 587))
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', '')
+app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', '')
+app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER', 'noreply@g-able.com')
+app.config['ADMIN_EMAIL'] = 'neungnuch.r@g-able.com'
+
+mail = Mail(app)
 
 # Database configuration
 DATABASE = os.environ.get('DATABASE_PATH', 'project_scoring.db')
@@ -45,6 +60,101 @@ def admin_required(f):
             return jsonify({'error': 'Admin access required'}), 403
         return f(*args, **kwargs)
     return decorated_function
+
+
+# Email notification function
+def send_new_user_notification(user_data):
+    """ส่งอีเมลแจ้งเตือนเมื่อมี user สมัครใหม่"""
+    try:
+        if not app.config['MAIL_USERNAME'] or not app.config['MAIL_PASSWORD']:
+            print("WARNING: Email not configured - skipping notification")
+            return
+        
+        msg = Message(
+            subject='🔔 มีผู้ใช้สมัครสมาชิกใหม่ - Project Scoring System',
+            recipients=[app.config['ADMIN_EMAIL']]
+        )
+        
+        msg.html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                .header {{ background: linear-gradient(135deg, #7c3aed 0%, #db2777 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }}
+                .content {{ background: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; }}
+                .user-info {{ background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #7c3aed; }}
+                .user-info h3 {{ margin-top: 0; color: #7c3aed; }}
+                .info-row {{ padding: 10px 0; border-bottom: 1px solid #e5e7eb; }}
+                .info-row:last-child {{ border-bottom: none; }}
+                .label {{ font-weight: bold; color: #64748b; width: 150px; display: inline-block; }}
+                .value {{ color: #1e293b; }}
+                .button {{ display: inline-block; background: linear-gradient(135deg, #7c3aed, #db2777); color: white; padding: 12px 30px; text-decoration: none; border-radius: 8px; margin-top: 20px; }}
+                .footer {{ text-align: center; padding: 20px; color: #64748b; font-size: 12px; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1 style="margin: 0;">🔔 มีผู้ใช้สมัครสมาชิกใหม่</h1>
+                    <p style="margin: 10px 0 0 0; opacity: 0.9;">Project Scoring System</p>
+                </div>
+                <div class="content">
+                    <p>สวัสดีค่ะ,</p>
+                    <p>มีผู้ใช้สมัครสมาชิกใหม่ในระบบ Project Scoring และรอการอนุมัติจากคุณ</p>
+                    
+                    <div class="user-info">
+                        <h3>📋 ข้อมูลผู้สมัคร</h3>
+                        <div class="info-row">
+                            <span class="label">👤 ชื่อ-นามสกุล:</span>
+                            <span class="value">{user_data['first_name']} {user_data['last_name']}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">📧 อีเมล:</span>
+                            <span class="value">{user_data['email']}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">🆔 รหัสพนักงาน:</span>
+                            <span class="value">{user_data['employee_id']}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">📅 สมัครเมื่อ:</span>
+                            <span class="value">{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</span>
+                        </div>
+                    </div>
+                    
+                    <p><strong>กรุณาเข้าสู่ระบบเพื่ออนุมัติหรือปฏิเสธการสมัคร:</strong></p>
+                    
+                    <div style="text-align: center;">
+                        <a href="http://localhost:5000/admin" class="button">
+                            🔐 เข้าสู่ระบบ Admin
+                        </a>
+                    </div>
+                    
+                    <p style="margin-top: 30px; font-size: 13px; color: #64748b;">
+                        💡 <strong>คำแนะนำ:</strong><br>
+                        - ตรวจสอบข้อมูลผู้สมัครให้ถูกต้อง<br>
+                        - ยืนยันว่าเป็นพนักงานของ G-Able<br>
+                        - อนุมัติเพื่อให้ user สามารถเข้าใช้งานระบบได้
+                    </p>
+                </div>
+                <div class="footer">
+                    <p>ระบบนี้ส่งอัตโนมัติ กรุณาอย่าตอบกลับอีเมลนี้</p>
+                    <p>© 2025 G-Able Project Scoring System</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        
+        mail.send(msg)
+        print(f"OK: Email sent to {app.config['ADMIN_EMAIL']}")
+        
+    except Exception as e:
+        print(f"WARNING: Email error: {e}")
+        # ไม่ throw error เพื่อไม่ให้กระทบการสมัครสมาชิก
 
 
 class ProjectScoringSystem:
@@ -513,26 +623,48 @@ def api_login():
 @app.route('/api/register', methods=['POST'])
 def api_register():
     """API สมัครสมาชิก"""
-    data = request.json
-    
-    # ตรวจสอบ email domain
-    email = data.get('email', '')
-    if not email.endswith('@g-able.com'):
-        return jsonify({'success': False, 'error': 'อีเมลต้องเป็น @g-able.com เท่านั้น'}), 400
-    
-    user_id = ProjectScoringSystem.create_user(
-        data['username'],
-        data['password'],
-        data['first_name'],
-        data['last_name'],
-        data['employee_id'],
-        email
-    )
-    
-    if user_id:
-        return jsonify({'success': True, 'message': 'สมัครสมาชิกสำเร็จ รอผู้ดูแลระบบอนุมัติ'})
-    
-    return jsonify({'success': False, 'error': 'Username, Employee ID หรือ Email ถูกใช้งานแล้ว'}), 400
+    try:
+        data = request.json
+        
+        if not data:
+            return jsonify({'success': False, 'error': 'ไม่พบข้อมูลที่ส่งมา'}), 400
+        
+        # ตรวจสอบ required fields
+        required_fields = ['username', 'password', 'first_name', 'last_name', 'employee_id', 'email']
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({'success': False, 'error': f'กรุณากรอก {field}'}), 400
+        
+        # ตรวจสอบ email domain
+        email = data.get('email', '')
+        if not email.endswith('@g-able.com'):
+            return jsonify({'success': False, 'error': 'อีเมลต้องเป็น @g-able.com เท่านั้น'}), 400
+        
+        user_id = ProjectScoringSystem.create_user(
+            data['username'],
+            data['password'],
+            data['first_name'],
+            data['last_name'],
+            data['employee_id'],
+            email
+        )
+        
+        if user_id:
+            # ส่งอีเมลแจ้งเตือน admin (ไม่ให้ error จาก email กระทบการสมัคร)
+            try:
+                send_new_user_notification(data)
+            except Exception as email_error:
+                print(f"WARNING: Email notification failed: {email_error}")
+            
+            return jsonify({'success': True, 'message': 'สมัครสมาชิกสำเร็จ รอผู้ดูแลระบบอนุมัติ'})
+        
+        return jsonify({'success': False, 'error': 'Username, Employee ID หรือ Email ถูกใช้งานแล้ว'}), 400
+        
+    except Exception as e:
+        print(f"ERROR: Register API Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': f'เกิดข้อผิดพลาด: {str(e)}'}), 500
 
 
 @app.route('/api/logout', methods=['POST'])
@@ -1092,6 +1224,117 @@ def reject_user(user_id):
         return jsonify({
             'success': True,
             'message': f'ปฏิเสธและลบ {user["first_name"]} {user["last_name"]} สำเร็จ'
+        })
+    except Exception as e:
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+
+@app.route('/api/admin/users/<int:user_id>', methods=['PUT'])
+@admin_required
+def update_user(user_id):
+    """แก้ไขข้อมูล user"""
+    data = request.json
+    conn = ProjectScoringSystem.get_db()
+    cursor = conn.cursor()
+    
+    try:
+        # ตรวจสอบ email domain
+        email = data.get('email', '')
+        if email and not email.endswith('@g-able.com'):
+            return jsonify({'success': False, 'error': 'อีเมลต้องเป็น @g-able.com เท่านั้น'}), 400
+        
+        cursor.execute('''
+            UPDATE users 
+            SET first_name=?, last_name=?, email=?, employee_id=?
+            WHERE id=?
+        ''', (data['first_name'], data['last_name'], 
+              data['email'], data['employee_id'], user_id))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'message': f'อัพเดทข้อมูล {data["first_name"]} {data["last_name"]} สำเร็จ'
+        })
+    except sqlite3.IntegrityError:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Email หรือ รหัสพนักงาน ถูกใช้งานแล้ว'}), 400
+    except Exception as e:
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+
+@app.route('/api/admin/users/<int:user_id>/delete', methods=['DELETE'])
+@admin_required
+def delete_user(user_id):
+    """ลบ user ถาวร"""
+    conn = ProjectScoringSystem.get_db()
+    cursor = conn.cursor()
+    
+    try:
+        # ตรวจสอบว่าไม่ใช่ admin คนเดียว
+        cursor.execute('SELECT role FROM users WHERE id = ?', (user_id,))
+        user = cursor.fetchone()
+        
+        if user and user['role'] == 'admin':
+            cursor.execute("SELECT COUNT(*) FROM users WHERE role = 'admin'")
+            admin_count = cursor.fetchone()[0]
+            if admin_count <= 1:
+                return jsonify({'success': False, 'error': 'ไม่สามารถลบ admin คนสุดท้ายได้'}), 400
+        
+        # ลบ projects ก่อน
+        cursor.execute('DELETE FROM projects WHERE user_id = ?', (user_id,))
+        
+        # ลบ user
+        cursor.execute('DELETE FROM users WHERE id = ?', (user_id,))
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True, 'message': 'ลบ user สำเร็จ'})
+    except Exception as e:
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+
+@app.route('/api/admin/users/<int:user_id>/change-role', methods=['POST'])
+@admin_required
+def change_user_role(user_id):
+    """เปลี่ยน role ของ user"""
+    data = request.json
+    new_role = data.get('role')
+    
+    if new_role not in ['employee', 'admin']:
+        return jsonify({'success': False, 'error': 'Role ไม่ถูกต้อง'}), 400
+    
+    conn = ProjectScoringSystem.get_db()
+    cursor = conn.cursor()
+    
+    try:
+        # ดึงข้อมูล user ปัจจุบัน
+        cursor.execute('SELECT first_name, last_name, role FROM users WHERE id = ?', (user_id,))
+        user = cursor.fetchone()
+        
+        if not user:
+            return jsonify({'success': False, 'error': 'User not found'}), 404
+        
+        # ป้องกันการลดสถานะ admin คนสุดท้าย
+        if user['role'] == 'admin' and new_role == 'employee':
+            cursor.execute("SELECT COUNT(*) FROM users WHERE role = 'admin'")
+            admin_count = cursor.fetchone()[0]
+            if admin_count <= 1:
+                return jsonify({'success': False, 'error': 'ต้องมี Admin อย่างน้อย 1 คน'}), 400
+        
+        # เปลี่ยน role
+        cursor.execute('UPDATE users SET role = ? WHERE id = ?', (new_role, user_id))
+        conn.commit()
+        conn.close()
+        
+        role_th = 'ผู้ดูแลระบบ' if new_role == 'admin' else 'พนักงาน'
+        return jsonify({
+            'success': True,
+            'message': f'เปลี่ยน {user["first_name"]} {user["last_name"]} เป็น {role_th} สำเร็จ'
         })
     except Exception as e:
         conn.close()

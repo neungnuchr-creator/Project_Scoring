@@ -265,10 +265,6 @@
             color: #4CAF50;
         }
 
-        .projects-table td.manday {
-            font-weight: bold;
-            color: #2196F3;
-        }
 
         .table-container {
             max-height: 500px;
@@ -315,7 +311,7 @@
     <div class="container">
         <div class="header">
             <h1>📊 ระบบจัดเก็บและคำนวณคะแนนโครงการ</h1>
-            <p>จัดการและติดตามคะแนนโครงการพร้อมคำนวณ Baseline Manday</p>
+            <p>จัดการและติดตามคะแนนโครงการ</p>
         </div>
 
         <div class="main-content">
@@ -420,10 +416,6 @@
                                 <div class="label">คะแนนโครงการ</div>
                                 <div class="value" id="calculatedScore">0.00</div>
                             </div>
-                            <div class="score-item">
-                                <div class="label">Baseline Manday</div>
-                                <div class="value" id="calculatedManday">0.00</div>
-                            </div>
                         </div>
                     </div>
 
@@ -468,10 +460,6 @@
                             <div class="label">ความคืบหน้าเฉลี่ย</div>
                             <div class="value" id="statAvgProgress">0%</div>
                         </div>
-                        <div class="stat-item">
-                            <div class="label">Manday เฉลี่ย</div>
-                            <div class="value" id="statAvgManday">0.00</div>
-                        </div>
                     </div>
                 </div>
 
@@ -492,13 +480,12 @@
                                 <th>Challenge</th>
                                 <th>Progress</th>
                                 <th>คะแนน</th>
-                                <th>Manday</th>
                                 <th>วันที่</th>
                             </tr>
                         </thead>
                         <tbody id="projectsList">
                             <tr>
-                                <td colspan="13" class="empty-state">
+                                <td colspan="12" class="empty-state">
                                     <div>📦</div>
                                     <div>ยังไม่มีโครงการ กรุณาเพิ่มโครงการใหม่</div>
                                 </td>
@@ -516,7 +503,7 @@
             document.getElementById('progressValue').textContent = this.value + '%';
         });
 
-        // Calculate score and baseline manday
+        // Calculate score
         async function calculateScore() {
             const difficultyCustomer = document.getElementById('difficultyCustomer').value;
             const difficultyProject = document.getElementById('difficultyProject').value;
@@ -543,7 +530,6 @@
 
                 const data = await response.json();
                 document.getElementById('calculatedScore').textContent = data.score.toFixed(2);
-                document.getElementById('calculatedManday').textContent = data.baseline_manday.toFixed(2);
             } catch (error) {
                 console.error('Error calculating:', error);
                 alert('เกิดข้อผิดพลาดในการคำนวณ');
@@ -723,7 +709,6 @@
             document.getElementById('challengeType').selectedIndex = 0;
             document.getElementById('notes').value = '';
             document.getElementById('calculatedScore').textContent = '0.00';
-            document.getElementById('calculatedManday').textContent = '0.00';
         }
 
         // Load project into form
@@ -742,7 +727,6 @@
             document.getElementById('challengeType').value = project.challenge_type;
             document.getElementById('notes').value = project.notes || '';
             document.getElementById('calculatedScore').textContent = project.score.toFixed(2);
-            document.getElementById('calculatedManday').textContent = project.baseline_manday.toFixed(2);
 
             // Scroll to form
             window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -785,7 +769,6 @@
                         <td><small>${project.challenge_type === 'None' ? '-' : project.challenge_type.substring(0, 10)}</small></td>
                         <td>${project.progress.toFixed(0)}%</td>
                         <td class="score">${project.score.toFixed(2)}</td>
-                        <td class="manday">${project.baseline_manday.toFixed(2)}</td>
                         <td><small>${project.updated_date.substring(0, 10)}</small></td>
                     `;
                     
@@ -806,7 +789,6 @@
                 document.getElementById('statAvgScore').textContent = stats.average_score.toFixed(2);
                 document.getElementById('statMaxScore').textContent = stats.highest_score.toFixed(2);
                 document.getElementById('statAvgProgress').textContent = stats.average_progress.toFixed(0) + '%';
-                document.getElementById('statAvgManday').textContent = stats.average_baseline_manday.toFixed(2);
             } catch (error) {
                 console.error('Error loading statistics:', error);
             }

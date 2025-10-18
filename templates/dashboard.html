@@ -537,11 +537,6 @@
             font-size: 14px;
         }
 
-        .projects-table .manday {
-            font-weight: 700;
-            color: var(--primary);
-            font-size: 14px;
-        }
 
         .badge {
             display: inline-block;
@@ -686,14 +681,6 @@
                 <div class="stat-label">ความคืบหน้าเฉลี่ย</div>
                 <div class="stat-value" id="statAvgProgress">0%</div>
             </div>
-
-            <div class="stat-card">
-                <div class="stat-icon pink">
-                    <i class="fas fa-calendar-check"></i>
-                </div>
-                <div class="stat-label">Manday เฉลี่ย</div>
-                <div class="stat-value" id="statAvgManday">0.00</div>
-            </div>
         </div>
 
         <!-- Main Content Grid -->
@@ -767,7 +754,6 @@
                         <div class="form-group">
                             <label>PM Effort <span class="required">*</span></label>
                             <input type="number" id="baselinePmEffort" required placeholder="0" min="0" step="0.1" value="0">
-                            <div class="info-text">Manday ของ PM</div>
                         </div>
                         <div class="form-group">
                             <label>ระยะเวลา <span class="required">*</span></label>
@@ -838,17 +824,16 @@
                                 <th>Contract No.</th>
                                 <th>ลูกค้า</th>
                                 <th>ประเภท</th>
-                                <th>PM Manday effort</th>
+                                <th>PM Effort</th>
                                 <th>Duration</th>
                                 <th>Progress</th>
                                 <th>คะแนน</th>
-                                <th>Manday</th>
                                 <th>วันที่</th>
                             </tr>
                         </thead>
                         <tbody id="projectsList">
                             <tr>
-                                <td colspan="11" class="empty-state">
+                                <td colspan="10" class="empty-state">
                                     <i class="fas fa-inbox"></i>
                                     <div>ยังไม่มีโครงการ กรุณาเพิ่มโครงการใหม่</div>
                                 </td>
@@ -1112,7 +1097,6 @@
                         <td>${project.project_duration}ปี</td>
                         <td>${project.progress.toFixed(0)}%</td>
                         <td class="score">${project.score.toFixed(2)}</td>
-                        <td class="manday">${project.baseline_manday.toFixed(2)}</td>
                         <td><small>${project.updated_date.substring(0, 10)}</small></td>
                     `;
                     
@@ -1133,7 +1117,6 @@
                 document.getElementById('statTotalScore').textContent = stats.total_score.toFixed(2);
                 document.getElementById('statMaxScore').textContent = stats.highest_score.toFixed(2);
                 document.getElementById('statAvgProgress').textContent = stats.average_progress.toFixed(0) + '%';
-                document.getElementById('statAvgManday').textContent = stats.average_baseline_manday.toFixed(2);
             } catch (error) {
                 console.error('Error:', error);
             }

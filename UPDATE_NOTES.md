@@ -248,3 +248,4 @@ A: 10.00 (Governance/State Enterprise × New Business × 100%)
 **พร้อมใช้งาน!** 🎉
 
 
+

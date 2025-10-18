@@ -409,3 +409,4 @@ A: Render และ PythonAnywhere ไม่ต้องมีบัตรเค
 **สร้างด้วย ❤️ | Happy Deploying! 🚀**
 
 
+

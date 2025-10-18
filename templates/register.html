@@ -557,15 +557,25 @@
                 });
 
                 console.log('📡 Response status:', response.status);
+                console.log('📡 Response content-type:', response.headers.get('content-type'));
 
-                // ตรวจสอบว่า response ok หรือไม่
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    console.log('❌ Error response:', errorData);
-                    throw new Error(errorData.error || 'เกิดข้อผิดพลาดในการสมัครสมาชิก');
+                // ตรวจสอบว่า response เป็น JSON หรือไม่
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    console.error('❌ Response is not JSON:', text.substring(0, 200));
+                    throw new Error('เกิดข้อผิดพลาดจากเซิร์ฟเวอร์ กรุณาตรวจสอบว่าระบบทำงานปกติ');
                 }
 
                 const result = await response.json();
+                console.log('📦 Response data:', result);
+
+                // ตรวจสอบว่า response ok หรือไม่
+                if (!response.ok) {
+                    console.log('❌ Error response:', result);
+                    throw new Error(result.error || 'เกิดข้อผิดพลาดในการสมัครสมาชิก');
+                }
+
                 console.log('✅ Success response:', result);
 
                 if (result.success) {
