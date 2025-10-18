@@ -643,10 +643,19 @@
                     <i class="fas fa-search"></i>
                     <input type="text" id="searchInput" placeholder="ค้นหาชื่อโครงการ, พนักงาน, รหัสพนักงาน...">
                 </div>
-                <button class="btn-refresh" onclick="loadProjects()">
-                    <i class="fas fa-sync-alt"></i>
-                    รีเฟรช
-                </button>
+                <div style="display: flex; gap: 10px;">
+                    <select id="exportUserSelect" style="padding: 10px 15px; border-radius: 10px; border: 2px solid #9333ea; background: white; color: #9333ea; font-weight: 600; cursor: pointer; min-width: 200px;">
+                        <option value="">ทั้งหมด (ภาพรวม)</option>
+                    </select>
+                    <button class="btn-refresh" onclick="exportAdminPDF()" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white;">
+                        <i class="fas fa-file-pdf"></i>
+                        Export PDF
+                    </button>
+                    <button class="btn-refresh" onclick="loadProjects()">
+                        <i class="fas fa-sync-alt"></i>
+                        รีเฟรช
+                    </button>
+                </div>
             </div>
 
             <div class="table-container">
@@ -837,11 +846,69 @@
             }
         }
 
+        // Load employees for export dropdown
+        async function loadEmployees() {
+            try {
+                const response = await fetch('/api/users');
+                const users = await response.json();
+                
+                const select = document.getElementById('exportUserSelect');
+                const currentOptions = select.innerHTML;
+                
+                users.forEach(user => {
+                    const option = document.createElement('option');
+                    option.value = user.id;
+                    option.textContent = `${user.first_name} ${user.last_name} (${user.employee_id})`;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error loading employees:', error);
+            }
+        }
+
+        // Export PDF for Admin
+        async function exportAdminPDF() {
+            try {
+                const userId = document.getElementById('exportUserSelect').value;
+                const url = userId ? `/api/export/pdf/admin?user_id=${userId}` : '/api/export/pdf/admin';
+                
+                const response = await fetch(url);
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const downloadUrl = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = downloadUrl;
+                    
+                    // Get filename from Content-Disposition header
+                    const disposition = response.headers.get('Content-Disposition');
+                    let filename = 'Project_Report.pdf';
+                    if (disposition && disposition.includes('filename=')) {
+                        filename = disposition.split('filename=')[1].replace(/"/g, '');
+                    }
+                    
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(downloadUrl);
+                    document.body.removeChild(a);
+                    
+                    alert('✅ Export PDF สำเร็จ!');
+                } else {
+                    alert('❌ เกิดข้อผิดพลาดในการ Export PDF');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('❌ เกิดข้อผิดพลาด: ' + error.message);
+            }
+        }
+
         // Initial load
         (async function() {
             await Promise.all([
                 loadProjects(),
-                loadStatistics()
+                loadStatistics(),
+                loadEmployees()
             ]);
         })();
 

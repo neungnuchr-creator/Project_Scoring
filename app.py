@@ -1,10 +1,19 @@
-from flask import Flask, render_template, request, jsonify, session, redirect, url_for
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for, send_file, make_response
 import sqlite3
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional
 import os
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
+from io import BytesIO
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4, landscape
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-change-in-production-12345'
@@ -375,33 +384,46 @@ class ProjectScoringSystem:
         if user_id:
             # สถิติของ user
             cursor.execute('''
-                SELECT COUNT(*), SUM(score), MAX(score), MIN(score), AVG(baseline_manday)
+                SELECT COUNT(*), SUM(score), AVG(score), MAX(score), MIN(score), 
+                       SUM(baseline_manday), AVG(baseline_manday)
                 FROM projects WHERE user_id = ?
             ''', (user_id,))
             stats = cursor.fetchone()
             
             cursor.execute('SELECT AVG(progress) FROM projects WHERE user_id = ?', (user_id,))
             avg_progress = cursor.fetchone()[0]
+            
+            # Count employees (for user it's always 1)
+            total_employees = 1
         else:
             # สถิติทั้งหมด (admin)
             cursor.execute('''
-                SELECT COUNT(*), SUM(score), MAX(score), MIN(score), AVG(baseline_manday)
+                SELECT COUNT(*), SUM(score), AVG(score), MAX(score), MIN(score), 
+                       SUM(baseline_manday), AVG(baseline_manday)
                 FROM projects
             ''')
             stats = cursor.fetchone()
             
             cursor.execute('SELECT AVG(progress) FROM projects')
             avg_progress = cursor.fetchone()[0]
+            
+            # Count distinct employees
+            cursor.execute('SELECT COUNT(DISTINCT user_id) FROM projects')
+            total_employees = cursor.fetchone()[0] or 0
         
         conn.close()
         
         return {
             'total_projects': stats[0] or 0,
-            'total_score': round(stats[1] or 0, 2),  # เปลี่ยนจาก average เป็น total
-            'highest_score': stats[2] or 0,
-            'lowest_score': stats[3] or 0,
+            'total_score': round(stats[1] or 0, 2),
+            'avg_score': round(stats[2] or 0, 2),
+            'highest_score': stats[3] or 0,
+            'lowest_score': stats[4] or 0,
+            'total_manday': round(stats[5] or 0, 2),
+            'average_baseline_manday': round(stats[6] or 0, 2),
             'average_progress': round(avg_progress or 0, 2),
-            'average_baseline_manday': round(stats[4] or 0, 2)
+            'avg_progress': round(avg_progress or 0, 2),
+            'total_employees': total_employees
         }
 
 
@@ -621,6 +643,352 @@ def get_statistics():
         stats = ProjectScoringSystem.get_statistics(session['user_id'])
     
     return jsonify(stats)
+
+
+@app.route('/api/users', methods=['GET'])
+@admin_required
+def get_users():
+    """API ดึงรายชื่อพนักงานทั้งหมด (สำหรับ Admin)"""
+    try:
+        conn = ProjectScoringSystem.get_db()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT id, username, first_name, last_name, employee_id, role
+            FROM users
+            WHERE role = 'employee'
+            ORDER BY first_name, last_name
+        ''')
+        users = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        return jsonify(users)
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+
+@app.route('/api/export/pdf', methods=['GET'])
+@login_required
+def export_user_pdf():
+    """Export PDF สำหรับ User พร้อม Summary"""
+    try:
+        user_id = session['user_id']
+        user = ProjectScoringSystem.get_user(user_id)
+        projects = ProjectScoringSystem.get_user_projects(user_id)
+        stats = ProjectScoringSystem.get_statistics(user_id)
+        
+        # สร้าง PDF
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=landscape(A4),
+                              rightMargin=30, leftMargin=30,
+                              topMargin=30, bottomMargin=30)
+        
+        elements = []
+        styles = getSampleStyleSheet()
+        
+        # Title
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=24,
+            textColor=colors.HexColor('#3b82f6'),
+            spaceAfter=30,
+            alignment=TA_CENTER
+        )
+        elements.append(Paragraph('Project Scoring Report', title_style))
+        elements.append(Spacer(1, 12))
+        
+        # User Info
+        user_info_style = ParagraphStyle('UserInfo', parent=styles['Normal'], fontSize=12)
+        elements.append(Paragraph(f"<b>Employee:</b> {user['first_name']} {user['last_name']}", user_info_style))
+        elements.append(Paragraph(f"<b>Employee ID:</b> {user['employee_id']}", user_info_style))
+        elements.append(Paragraph(f"<b>Report Date:</b> {datetime.now().strftime('%Y-%m-%d %H:%M')}", user_info_style))
+        elements.append(Spacer(1, 20))
+        
+        # Summary Section
+        summary_title = ParagraphStyle('SummaryTitle', parent=styles['Heading2'],
+                                      fontSize=16, textColor=colors.HexColor('#1e40af'),
+                                      spaceAfter=10)
+        elements.append(Paragraph('Summary', summary_title))
+        
+        summary_data = [
+            ['Metric', 'Value'],
+            ['Total Projects', str(stats['total_projects'])],
+            ['Total Score', f"{stats['total_score']:.2f}"],
+            ['Average Score', f"{stats['avg_score']:.2f}"],
+            ['Total Manday', f"{stats['total_manday']:.2f}"],
+            ['Average Progress', f"{stats['avg_progress']:.1f}%"]
+        ]
+        
+        summary_table = Table(summary_data, colWidths=[3*inch, 2*inch])
+        summary_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3b82f6')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 12),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('FONTSIZE', (0, 1), (-1, -1), 10),
+            ('TOPPADDING', (0, 1), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
+        ]))
+        elements.append(summary_table)
+        elements.append(Spacer(1, 20))
+        
+        # Projects Table
+        projects_title = ParagraphStyle('ProjectsTitle', parent=styles['Heading2'],
+                                       fontSize=16, textColor=colors.HexColor('#1e40af'),
+                                       spaceAfter=10)
+        elements.append(Paragraph('Project Details', projects_title))
+        
+        # Table data
+        table_data = [['No.', 'Project Name', 'Year', 'Customer', 'Project Type', 
+                      'PM Effort', 'Duration', 'Progress', 'Score', 'Manday']]
+        
+        for idx, project in enumerate(projects, 1):
+            table_data.append([
+                str(idx),
+                project['project_name'][:30],
+                str(project.get('project_year', '-')),
+                project['difficulty_customer'][:15],
+                project['difficulty_project'][:20],
+                str(project['baseline_pm_effort']),
+                f"{project['project_duration']} Y",
+                f"{project['progress']:.0f}%",
+                f"{project['score']:.2f}",
+                f"{project['baseline_manday']:.2f}"
+            ])
+        
+        # Create table
+        projects_table = Table(table_data, colWidths=[0.4*inch, 1.8*inch, 0.6*inch, 1.2*inch, 
+                                                      1.5*inch, 0.8*inch, 0.8*inch, 0.8*inch, 
+                                                      0.8*inch, 0.9*inch])
+        
+        projects_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3b82f6')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 9),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('FONTSIZE', (0, 1), (-1, -1), 8),
+            ('TOPPADDING', (0, 1), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey]),
+        ]))
+        elements.append(projects_table)
+        
+        # Build PDF
+        doc.build(elements)
+        buffer.seek(0)
+        
+        filename = f"Project_Report_{user['employee_id']}_{datetime.now().strftime('%Y%m%d')}.pdf"
+        
+        return send_file(
+            buffer,
+            as_attachment=True,
+            download_name=filename,
+            mimetype='application/pdf'
+        )
+        
+    except Exception as e:
+        import traceback
+        error_detail = traceback.format_exc()
+        print("=" * 50)
+        print("ERROR in export_user_pdf:")
+        print(error_detail)
+        print("=" * 50)
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+
+@app.route('/api/export/pdf/admin', methods=['GET'])
+@admin_required
+def export_admin_pdf():
+    """Export PDF สำหรับ Admin พร้อม Summary ภาพรวม"""
+    try:
+        user_id = request.args.get('user_id', type=int)
+        
+        if user_id:
+            # Export สำหรับพนักงานคนใด คนหนึ่ง
+            user = ProjectScoringSystem.get_user(user_id)
+            projects = ProjectScoringSystem.get_user_projects(user_id)
+            stats = ProjectScoringSystem.get_statistics(user_id)
+            title_text = f'Project Report - {user["first_name"]} {user["last_name"]}'
+            filename_prefix = user['employee_id']
+        else:
+            # Export ภาพรวมทั้งหมด
+            projects = ProjectScoringSystem.get_all_projects_admin()
+            stats = ProjectScoringSystem.get_statistics()
+            title_text = 'Project Scoring - Overview Report'
+            filename_prefix = 'All'
+            user = None
+        
+        # สร้าง PDF
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=landscape(A4),
+                              rightMargin=30, leftMargin=30,
+                              topMargin=30, bottomMargin=30)
+        
+        elements = []
+        styles = getSampleStyleSheet()
+        
+        # Title
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=24,
+            textColor=colors.HexColor('#9333ea'),
+            spaceAfter=30,
+            alignment=TA_CENTER
+        )
+        elements.append(Paragraph(title_text, title_style))
+        elements.append(Spacer(1, 12))
+        
+        # Report Info
+        info_style = ParagraphStyle('Info', parent=styles['Normal'], fontSize=12)
+        if user:
+            elements.append(Paragraph(f"<b>Employee:</b> {user['first_name']} {user['last_name']}", info_style))
+            elements.append(Paragraph(f"<b>Employee ID:</b> {user['employee_id']}", info_style))
+        else:
+            elements.append(Paragraph(f"<b>Report Type:</b> All Employees Summary", info_style))
+        elements.append(Paragraph(f"<b>Report Date:</b> {datetime.now().strftime('%Y-%m-%d %H:%M')}", info_style))
+        elements.append(Paragraph(f"<b>Generated By:</b> {session['first_name']} {session['last_name']} (Admin)", info_style))
+        elements.append(Spacer(1, 20))
+        
+        # Summary Section
+        summary_title = ParagraphStyle('SummaryTitle', parent=styles['Heading2'],
+                                      fontSize=16, textColor=colors.HexColor('#7c3aed'),
+                                      spaceAfter=10)
+        elements.append(Paragraph('Overall Summary', summary_title))
+        
+        summary_data = [
+            ['Metric', 'Value'],
+            ['Total Projects', str(stats['total_projects'])],
+            ['Total Employees' if not user else 'Total Projects', 
+             str(stats.get('total_employees', stats['total_projects']))],
+            ['Total Score', f"{stats['total_score']:.2f}"],
+            ['Average Score', f"{stats['avg_score']:.2f}"],
+            ['Total Manday', f"{stats['total_manday']:.2f}"],
+            ['Average Progress', f"{stats['avg_progress']:.1f}%"]
+        ]
+        
+        summary_table = Table(summary_data, colWidths=[3*inch, 2*inch])
+        summary_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#9333ea')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 12),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.lavender),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('FONTSIZE', (0, 1), (-1, -1), 10),
+            ('TOPPADDING', (0, 1), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
+        ]))
+        elements.append(summary_table)
+        elements.append(Spacer(1, 20))
+        
+        # Projects Table
+        projects_title = ParagraphStyle('ProjectsTitle', parent=styles['Heading2'],
+                                       fontSize=16, textColor=colors.HexColor('#7c3aed'),
+                                       spaceAfter=10)
+        elements.append(Paragraph('Project Details', projects_title))
+        
+        # Table headers
+        if user:
+            table_data = [['No.', 'Project', 'Year', 'Customer', 'Type', 
+                          'PM', 'Dur.', 'Progress', 'Score', 'Manday']]
+        else:
+            table_data = [['No.', 'Project', 'Employee', 'Year', 'Customer', 
+                          'PM', 'Dur.', 'Progress', 'Score', 'Manday']]
+        
+        for idx, project in enumerate(projects, 1):
+            if user:
+                table_data.append([
+                    str(idx),
+                    project['project_name'][:25],
+                    str(project.get('project_year', '-')),
+                    project['difficulty_customer'][:12],
+                    project['difficulty_project'][:15],
+                    str(project['baseline_pm_effort']),
+                    f"{project['project_duration']}Y",
+                    f"{project['progress']:.0f}%",
+                    f"{project['score']:.2f}",
+                    f"{project['baseline_manday']:.2f}"
+                ])
+            else:
+                table_data.append([
+                    str(idx),
+                    project['project_name'][:20],
+                    f"{project['first_name']} {project['last_name']}"[:15],
+                    str(project.get('project_year', '-')),
+                    project['difficulty_customer'][:10],
+                    str(project['baseline_pm_effort']),
+                    f"{project['project_duration']}Y",
+                    f"{project['progress']:.0f}%",
+                    f"{project['score']:.2f}",
+                    f"{project['baseline_manday']:.2f}"
+                ])
+        
+        # Create table with appropriate column widths
+        if user:
+            col_widths = [0.4*inch, 1.8*inch, 0.6*inch, 1*inch, 1.2*inch, 
+                         0.6*inch, 0.6*inch, 0.8*inch, 0.8*inch, 0.9*inch]
+        else:
+            col_widths = [0.4*inch, 1.5*inch, 1.2*inch, 0.6*inch, 0.9*inch,
+                         0.6*inch, 0.6*inch, 0.8*inch, 0.8*inch, 0.9*inch]
+        
+        projects_table = Table(table_data, colWidths=col_widths)
+        
+        projects_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#9333ea')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('FONTSIZE', (0, 1), (-1, -1), 7),
+            ('TOPPADDING', (0, 1), (-1, -1), 5),
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 5),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey]),
+        ]))
+        elements.append(projects_table)
+        
+        # Footer
+        elements.append(Spacer(1, 20))
+        footer_style = ParagraphStyle('Footer', parent=styles['Normal'], 
+                                     fontSize=8, textColor=colors.grey, alignment=TA_CENTER)
+        elements.append(Paragraph(
+            f'Generated by Project Scoring System | {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}',
+            footer_style
+        ))
+        
+        # Build PDF
+        doc.build(elements)
+        buffer.seek(0)
+        
+        filename = f"Project_Report_{filename_prefix}_{datetime.now().strftime('%Y%m%d')}.pdf"
+        
+        return send_file(
+            buffer,
+            as_attachment=True,
+            download_name=filename,
+            mimetype='application/pdf'
+        )
+        
+    except Exception as e:
+        import traceback
+        error_detail = traceback.format_exc()
+        print("=" * 50)
+        print("ERROR in export_admin_pdf:")
+        print(error_detail)
+        print("=" * 50)
+        return jsonify({'success': False, 'error': str(e)}), 400
 
 
 if __name__ == '__main__':
