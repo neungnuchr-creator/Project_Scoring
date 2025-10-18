@@ -129,6 +129,9 @@ class ProjectScoringSystem:
                 created_date TEXT NOT NULL,
                 updated_date TEXT NOT NULL,
                 notes TEXT,
+                project_year INTEGER,
+                difficulty TEXT,
+                customer_type TEXT,
                 FOREIGN KEY (user_id) REFERENCES users (id)
             )
         ''')
@@ -139,10 +142,10 @@ class ProjectScoringSystem:
             admin_password = generate_password_hash('admin123')
             cursor.execute('''
                 INSERT INTO users (username, password, first_name, last_name, 
-                                 employee_id, role, created_date)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                                 employee_id, email, role, approved, created_date)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', ('admin', admin_password, 'Admin', 'System', 'ADMIN001', 
-                  'admin', datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+                  'admin@g-able.com', 'admin', 1, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
         
         conn.commit()
         conn.close()

@@ -69,26 +69,26 @@ def clear_and_init_database():
     # สร้าง default admin user
     admin_password = generate_password_hash('admin123')
     cursor.execute('''
-        INSERT INTO users (username, password, first_name, last_name, employee_id, role, created_date)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO users (username, password, first_name, last_name, employee_id, email, role, approved, created_date)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', ('admin', admin_password, 'Admin', 'System', 'ADMIN001', 
-          'admin', datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
-    print("✅ สร้าง admin user (username: admin, password: admin123)")
+          'admin@g-able.com', 'admin', 1, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+    print("✅ สร้าง admin user")
     
     # สร้าง demo users
     demo_users = [
-        ('user1', 'user123', 'สมชาย', 'ใจดี', 'EMP001', 'employee'),
-        ('user2', 'user123', 'สมหญิง', 'รักสวย', 'EMP002', 'employee'),
-        ('user3', 'user123', 'วิชัย', 'มั่นคง', 'EMP003', 'employee'),
+        ('user1', 'user123', 'สมชาย', 'ใจดี', 'EMP001', 'user1@g-able.com', 'employee'),
+        ('user2', 'user123', 'สมหญิง', 'รักสวย', 'EMP002', 'user2@g-able.com', 'employee'),
+        ('user3', 'user123', 'วิชัย', 'มั่นคง', 'EMP003', 'user3@g-able.com', 'employee'),
     ]
     
-    for username, password, first_name, last_name, emp_id, role in demo_users:
+    for username, password, first_name, last_name, emp_id, email, role in demo_users:
         hashed_password = generate_password_hash(password)
         cursor.execute('''
-            INSERT INTO users (username, password, first_name, last_name, employee_id, role, created_date)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (username, hashed_password, first_name, last_name, emp_id, 
-              role, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+            INSERT INTO users (username, password, first_name, last_name, employee_id, email, role, approved, created_date)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (username, hashed_password, first_name, last_name, emp_id, email,
+              role, 1, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
     
     print(f"✅ สร้าง demo users ({len(demo_users)} คน)")
     print("   - user1/user123 (สมชาย ใจดี - EMP001)")
